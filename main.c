@@ -15,7 +15,7 @@ print_binary (int num, size_t width)
 int
 main (void)
 {
-  rlvm_t vm = init_rlvm ();
+  rlvm_t vm = init_rlvm (0);
 
   /*
    * Calculate the gcd of 48 and 180
@@ -29,36 +29,31 @@ main (void)
    */
   opcode_t ins[] = {
     {
-      .svar = (op_svar_t) {
-    			  .opcode = 2,.rs = 0,.rt = 0,.immediate = 48}
+     .svar = (op_svar_t) {
+			  .opcode = 2,.rs = 0,.rt = 0,.immediate = 48}
      },
     {
      .svar = (op_svar_t) {
-    			  .opcode = 2,.rs = 1,.rt = 0,.immediate = 180}
+			  .opcode = 2,.rs = 1,.rt = 0,.immediate = 180}
      },
     {
-      .svar = (op_svar_t) {
-	.opcode = 26,.rs = 1,.rt = 0,.immediate = 6
-      }
-    },
+     .svar = (op_svar_t) {
+			  .opcode = 26,.rs = 1,.rt = 0,.immediate = 6}
+     },
     {
-      .fvar = (op_fvar_t) {
-	.opcode = 1,.rs = 0,.rt = 1,.rd = 0,.sa = 0,.fn = 4
-      }
-    },
+     .fvar = (op_fvar_t) {
+			  .opcode = 1,.rs = 0,.rt = 1,.rd = 0,.sa = 0,.fn = 4}
+     },
     {
-      .fvar = (op_fvar_t) {
-	.opcode = 0,.rs = 0,.rd = 1,.rt = 0,.sa = 0,.fn = 3
-      }
-    },
+     .fvar = (op_fvar_t) {
+			  .opcode = 0,.rs = 0,.rd = 1,.rt = 0,.sa = 0,.fn = 3}
+     },
     {
-      .tvar = (op_tvar_t) {
-	.opcode = 24,.target = -3
-      }
-    },
+     .tvar = (op_tvar_t) {
+			  .opcode = 24,.target = -3}
+     },
     {
-      .bytes = 0
-    }
+     .bytes = 0}
   };
 
   /* This only works because ins is a *legit* array (as opposed to a pointer) */

@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <inttypes.h>
 
 /*
@@ -57,15 +58,15 @@ typedef union opcode_t
  * For now, we ignore the vector type
  */
 #define ALLOC_REGS_COUNT 32
-#define ALLOC_STACK_COUNT 32768
 
 typedef struct rlvm_t
 {
+  size_t stack_size;
   size_t sp;
   size_t ip;
   uint64_t iregs[ALLOC_REGS_COUNT];
   double fregs[ALLOC_REGS_COUNT];
-  size_t stack[ALLOC_STACK_COUNT];
+  size_t *stack;
 } rlvm_t;
 
 #ifdef __cplusplus
@@ -73,7 +74,7 @@ extern "C"
 {
 #endif				/* !__cplusplus */
 
-  extern rlvm_t init_rlvm (void);
+  extern rlvm_t init_rlvm (size_t stack_size);
 
   extern void print_rlvm_state (rlvm_t * vm);
 

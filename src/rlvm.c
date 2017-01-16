@@ -11,11 +11,11 @@ union fp_i_conv_t
 };
 
 rlvm_t
-init_rlvm (void)
+init_rlvm (size_t stack_size)
 {
   return (rlvm_t)
   {
-    .sp = 0,.ip = 0,.iregs =
+    .stack_size = stack_size,.sp = 0,.ip = 0,.iregs =
     {
     0}
     ,				/* Set to zero */
@@ -23,10 +23,7 @@ init_rlvm (void)
     {
     0}
     ,				/* Set to zero */
-      .stack =
-    {
-    0}				/* Set to zero */
-  };
+  .stack = stack_size == 0 ? NULL : calloc (stack_size, sizeof (size_t))};
 }
 
 void
@@ -47,7 +44,9 @@ print_rlvm_state (rlvm_t * vm)
 void
 clean_rlvm (rlvm_t * vm)
 {
-  /* Do nothing because nothing is allocated on the heap! */
+  free (vm->stack);
+  vm->stack_size = 0;
+  vm->stack = NULL;
 }
 
 static inline int64_t
@@ -74,20 +73,44 @@ exec_bytecode (rlvm_t * vm, const size_t len, opcode_t * ops)
 	    case 1:		/* op: MRI rs: r# rd: r# sa: acc */
 	      switch (instr.fvar.sa)
 		{
-		case 0:		/* Plain-old copy */
+		case 0:	/* Plain-old copy */
 		  vm->iregs[instr.fvar.rd] = vm->iregs[instr.fvar.rs];
 		  break;
-		case 1:		/* Copy high 32 bits */
-		  vm->iregs[instr.fvar.rd] = (vm->iregs[instr.fvar.rs] & 0xFFFFFFFF00000000) | (vm->iregs[instr.fvar.rd] & 0xFFFFFFFF);
+		case 1:	/* Copy high 32 bits */
+		  vm->iregs[instr.fvar.rd] =
+		    (vm->iregs[instr.fvar.rs] & 0xFFFFFFFF00000000) | (vm->
+								       iregs
+								       [instr.
+									fvar.
+									rd] &
+								       0xFFFFFFFF);
 		  break;
-		case 2:		/* Copy low 32 bits */
-		  vm->iregs[instr.fvar.rd] = (vm->iregs[instr.fvar.rd] & 0xFFFFFFFF00000000) | (vm->iregs[instr.fvar.rs] & 0xFFFFFFFF);
+		case 2:	/* Copy low 32 bits */
+		  vm->iregs[instr.fvar.rd] =
+		    (vm->iregs[instr.fvar.rd] & 0xFFFFFFFF00000000) | (vm->
+								       iregs
+								       [instr.
+									fvar.
+									rs] &
+								       0xFFFFFFFF);
 		  break;
-		case 3:		/* Copy low 16 bits */
-		  vm->iregs[instr.fvar.rd] = (vm->iregs[instr.fvar.rd] & 0xFFFFFFFFFFFF0000) | (vm->iregs[instr.fvar.rs] & 0xFFFF);
+		case 3:	/* Copy low 16 bits */
+		  vm->iregs[instr.fvar.rd] =
+		    (vm->iregs[instr.fvar.rd] & 0xFFFFFFFFFFFF0000) | (vm->
+								       iregs
+								       [instr.
+									fvar.
+									rs] &
+								       0xFFFF);
 		  break;
-		case 4:		/* Copy low 8 bits */
-		  vm->iregs[instr.fvar.rd] = (vm->iregs[instr.fvar.rd] & 0xFFFFFFFFFFFFFF00) | (vm->iregs[instr.fvar.rs] & 0xFF);
+		case 4:	/* Copy low 8 bits */
+		  vm->iregs[instr.fvar.rd] =
+		    (vm->iregs[instr.fvar.rd] & 0xFFFFFFFFFFFFFF00) | (vm->
+								       iregs
+								       [instr.
+									fvar.
+									rs] &
+								       0xFF);
 		  break;
 		}
 	      break;
@@ -245,7 +268,7 @@ exec_bytecode (rlvm_t * vm, const size_t len, opcode_t * ops)
 	    vm->iregs[instr.svar.rt] ^ instr.svar.immediate;
 	  break;
 	case 11:		/* op: CALL target: val */
-	  if (vm->sp >= ALLOC_STACK_COUNT)
+	  if (vm->sp >= vm->stack_size)
 	    return 1;		/* ERR:STACK OVERFLOW */
 	  vm->stack[vm->sp++] = vm->ip + 1;	/* Intentional Fallthrough! */
 	case 12:		/* op: JMP target: val */
@@ -319,7 +342,8 @@ exec_bytecode (rlvm_t * vm, const size_t len, opcode_t * ops)
 	  continue;
 	case 25:		/* op: JIR rs: r# rt: << immediate: sval */
 	  vm->ip =
-	    (vm->iregs[instr.svar.rs] << instr.svar.rt) + instr.svar.immediate;
+	    (vm->iregs[instr.svar.rs] << instr.svar.rt) +
+	    instr.svar.immediate;
 	  continue;
 	case 26:		/* op: JZ rs: r# rt: (not used) immediate: val */
 	  if (vm->iregs[instr.svar.rs] == 0)
