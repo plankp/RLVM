@@ -1,0 +1,20 @@
+cmake_minimum_required(VERSION 2.8.12)
+cmake_policy(SET CMP0054 NEW)
+project(RLVM)
+
+if ("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
+    set(CMAKE_C_FLAGS "-std=c99 -Wall -O3")
+	set(CMAKE_EXE_LINKER_FLAGS "-Os -s -fdata-sections -ffunction-sections -Wl,--gc-sections,--strip-all")
+elseif ("${CMAKE_C_COMPILER_ID}" MATCHES "Clang")
+    set(CMAKE_C_FLAGS, "-std=c99 -Wall -O2")
+	set(CMAKE_EXE_LINKER_FLAGS "-Os")
+elseif ("${CMAKE_C_COMPILER_ID}" STREQUAL "MSVC")
+    set(CMAKE_C_FLAGS "/O2 /W4")
+	set(CMAKE_EXE_LINKER_FLAGS "/OPT:REF")
+endif()
+
+include_directories(${RLVM_SOURCE_DIR}/header)
+add_subdirectory(${RLVM_SOURCE_DIR}/src)
+
+add_executable(rlvm main.c)
+target_link_libraries(rlvm rlvmlib)
