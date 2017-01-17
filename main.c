@@ -30,15 +30,15 @@ main (void)
   opcode_t ins[] = {
     {
      .svar = (op_svar_t) {
-			  .opcode = 2,.rs = 0,.rt = 0,.immediate = 48}
+			  .opcode = 3,.rs = 0,.rt = 0,.immediate = 48}
      },
     {
      .svar = (op_svar_t) {
-			  .opcode = 2,.rs = 1,.rt = 0,.immediate = 180}
+			  .opcode = 3,.rs = 1,.rt = 0,.immediate = 180}
      },
     {
      .svar = (op_svar_t) {
-			  .opcode = 26,.rs = 1,.rt = 0,.immediate = 6}
+			  .opcode = 25,.rs = 1,.rt = 0,.immediate = 6}
      },
     {
      .fvar = (op_fvar_t) {
@@ -50,7 +50,7 @@ main (void)
      },
     {
      .tvar = (op_tvar_t) {
-			  .opcode = 24,.target = -3}
+			  .opcode = 23,.target = -3}
      },
     {
      .bytes = 0}
@@ -66,7 +66,10 @@ main (void)
       printf ("\n");
     }
 
-  exec_bytecode (&vm, length, ins);
+  status_t retval = exec_bytecode (&vm, length, ins);
+  if (retval.state != CLEAN)
+    printf ("VM EXITED WITH NON-ZERO VALUE! (%d: %d)\n", retval.state,
+	    retval.uid);
 
   print_rlvm_state (&vm);
   clean_rlvm (&vm);

@@ -56,7 +56,7 @@ __pad_sign_bit (uint64_t x, size_t width)
   return ((x & (max_val - 1)) - max_val * ((x >> (width)) & 1));
 }
 
-int
+status_t
 exec_bytecode (rlvm_t * vm, const size_t len, opcode_t * ops)
 {
   while (vm->ip < len)
@@ -69,7 +69,9 @@ exec_bytecode (rlvm_t * vm, const size_t len, opcode_t * ops)
 	  switch (instr.fvar.fn)
 	    {
 	    case 0:		/* op: HALT rs: r# */
-	      return (int) vm->iregs[instr.fvar.rs];
+	      return (status_t)
+	      {
+	      .state = CLEAN,.uid = vm->iregs[instr.fvar.rs]};
 	    case 1:		/* op: MRI rs: r# rd: r# sa: acc */
 	      switch (instr.fvar.sa)
 		{
@@ -78,39 +80,23 @@ exec_bytecode (rlvm_t * vm, const size_t len, opcode_t * ops)
 		  break;
 		case 1:	/* Copy high 32 bits */
 		  vm->iregs[instr.fvar.rd] =
-		    (vm->iregs[instr.fvar.rs] & 0xFFFFFFFF00000000) | (vm->
-								       iregs
-								       [instr.
-									fvar.
-									rd] &
-								       0xFFFFFFFF);
+		    (vm->iregs[instr.fvar.rs] & 0xFFFFFFFF00000000) |
+		    (vm->iregs[instr.fvar.rd] & 0xFFFFFFFF);
 		  break;
 		case 2:	/* Copy low 32 bits */
 		  vm->iregs[instr.fvar.rd] =
-		    (vm->iregs[instr.fvar.rd] & 0xFFFFFFFF00000000) | (vm->
-								       iregs
-								       [instr.
-									fvar.
-									rs] &
-								       0xFFFFFFFF);
+		    (vm->iregs[instr.fvar.rd] & 0xFFFFFFFF00000000) |
+		    (vm->iregs[instr.fvar.rs] & 0xFFFFFFFF);
 		  break;
 		case 3:	/* Copy low 16 bits */
 		  vm->iregs[instr.fvar.rd] =
-		    (vm->iregs[instr.fvar.rd] & 0xFFFFFFFFFFFF0000) | (vm->
-								       iregs
-								       [instr.
-									fvar.
-									rs] &
-								       0xFFFF);
+		    (vm->iregs[instr.fvar.rd] & 0xFFFFFFFFFFFF0000) |
+		    (vm->iregs[instr.fvar.rs] & 0xFFFF);
 		  break;
 		case 4:	/* Copy low 8 bits */
 		  vm->iregs[instr.fvar.rd] =
-		    (vm->iregs[instr.fvar.rd] & 0xFFFFFFFFFFFFFF00) | (vm->
-								       iregs
-								       [instr.
-									fvar.
-									rs] &
-								       0xFF);
+		    (vm->iregs[instr.fvar.rd] & 0xFFFFFFFFFFFFFF00) |
+		    (vm->iregs[instr.fvar.rs] & 0xFF);
 		  break;
 		}
 	      break;
@@ -121,6 +107,41 @@ exec_bytecode (rlvm_t * vm, const size_t len, opcode_t * ops)
 	      vm->iregs[instr.fvar.rd] ^= vm->iregs[instr.fvar.rs];
 	      vm->iregs[instr.fvar.rs] ^= vm->iregs[instr.fvar.rd];
 	      vm->iregs[instr.fvar.rd] ^= vm->iregs[instr.fvar.rs];
+	      break;
+	    case 4:		/* op: ITF rs: r# rd: r# rt specifying mode */
+	      switch (instr.fvar.rt)
+		{
+		case 0:	/* Float takes int's textual value */
+		  vm->fregs[instr.fvar.rd] = instr.fvar.rs;
+		  break;
+		case 1:	/* Float takes int's bits */
+		  {
+		    union fp_i_conv_t conv = (union fp_i_conv_t) {
+		      .ival = instr.fvar.rs
+		    };
+		    vm->fregs[instr.fvar.rd] = conv.fval;
+		    break;
+		  }
+		}
+	      break;
+	    case 5:		/* op: FTI rs: r# rd: r# rt specifying mode */
+	      switch (instr.fvar.rt)
+		{
+		case 0:	/* Int takes float's textual value, floor */
+		  vm->iregs[instr.fvar.rd] = floor (vm->fregs[instr.fvar.rs]);
+		  break;
+		case 1:	/* Int takes float's bits */
+		  {
+		    union fp_i_conv_t conv = (union fp_i_conv_t) {
+		      .fval = vm->fregs[instr.fvar.rs]
+		    };
+		    vm->iregs[instr.fvar.rd] = conv.ival;
+		    break;
+		  }
+		case 2:	/* Int takes float's textual value, ceil */
+		  vm->iregs[instr.fvar.rd] = ceil (vm->fregs[instr.fvar.rs]);
+		  break;
+		}
 	      break;
 	    }
 	  break;
@@ -153,6 +174,10 @@ exec_bytecode (rlvm_t * vm, const size_t len, opcode_t * ops)
 		vm->iregs[instr.fvar.rd] = vm->iregs[instr.fvar.rs] * rhs;
 		break;
 	      case 3:		/* rd = rs / rhs */
+		if (rhs == 0)
+		  return (status_t)
+		  {
+		  .state = DIV_BY_ZERO,.uid = 0};
 		vm->iregs[instr.fvar.rd] = vm->iregs[instr.fvar.rs] / rhs;
 		break;
 	      case 4:		/* rd = rs % rhs */
@@ -171,112 +196,87 @@ exec_bytecode (rlvm_t * vm, const size_t len, opcode_t * ops)
 		vm->iregs[instr.fvar.rd] = ~rhs;
 		break;
 		/* End of integer oriented instructions */
-	      case 9:		/* rd = rs + rt [fp] */
+		break;
+	      }
+	case 2:
+	    switch (instr.fvar.fn)
+	      {
+	      case 0:		/* rd = rs + rt [fp] */
 		vm->fregs[instr.fvar.rd] = vm->fregs[instr.fvar.rs] +
 		  vm->fregs[instr.fvar.rt];
 		break;
-	      case 10:		/* rd = rs - rt [fp] */
+	      case 1:		/* rd = rs - rt [fp] */
 		vm->fregs[instr.fvar.rd] = vm->fregs[instr.fvar.rs] -
 		  vm->fregs[instr.fvar.rt];
 		break;
-	      case 11:		/* rd = rs * rt [fp] */
+	      case 2:		/* rd = rs * rt [fp] */
 		vm->fregs[instr.fvar.rd] = vm->fregs[instr.fvar.rs] *
 		  vm->fregs[instr.fvar.rt];
 		break;
-	      case 12:		/* rd = rs / rt [fp] */
+	      case 3:		/* rd = rs / rt [fp] */
 		vm->fregs[instr.fvar.rd] = vm->fregs[instr.fvar.rs] /
 		  vm->fregs[instr.fvar.rt];
 		break;
-	      case 13:		/* rd = rs % rt [fp] */
+	      case 4:		/* rd = rs % rt [fp] */
 		vm->fregs[instr.fvar.rd] = fmod (vm->fregs[instr.fvar.rs],
 						 vm->fregs[instr.fvar.rt]);
 		break;
-	      case 14:		/* fp::rd = i::rhs with rs specifying mode */
-		switch (instr.fvar.rs)
-		  {
-		  case 0:	/* Float takes int's textual value */
-		    vm->fregs[instr.fvar.rd] = rhs;
-		    break;
-		  case 1:	/* Float takes int's bits */
-		    {
-		      union fp_i_conv_t conv = (union fp_i_conv_t) {
-			.ival = rhs
-		      };
-		      vm->fregs[instr.fvar.rd] = conv.fval;
-		      break;
-		    }
-		  }
-		break;
-	      case 15:		/* i::rd = fp::rs with rt specifying mode */
-		switch (instr.fvar.rt)
-		  {
-		  case 0:	/* Int takes float's textual value, floor */
-		    vm->iregs[instr.fvar.rd] =
-		      floor (vm->fregs[instr.fvar.rs]);
-		    break;
-		  case 1:	/* Int takes float's bits */
-		    {
-		      union fp_i_conv_t conv = (union fp_i_conv_t) {
-			.fval = vm->fregs[instr.fvar.rs]
-		      };
-		      vm->iregs[instr.fvar.rd] = conv.ival;
-		      break;
-		    }
-		  case 2:	/* Int takes float's textual value, ceil */
-		    vm->iregs[instr.fvar.rd] =
-		      ceil (vm->fregs[instr.fvar.rs]);
-		    break;
-		  }
-		break;
-		/* End of float point oriented instructions */
 	      }
-	    break;
 	  }
-	case 2:		/* op: LDI rs: r# rt: << immediate: val */
+	  break;
+	case 3:		/* op: LDI rs: r# rt: << immediate: val */
 	  vm->iregs[instr.svar.rs] = instr.svar.immediate << instr.svar.rt;
 	  break;
-	case 3:		/* op: ADDI rs: r# rt: r# immediate: val */
+	case 4:		/* op: ADDI rs: r# rt: r# immediate: val */
 	  vm->iregs[instr.svar.rs] =
 	    vm->iregs[instr.svar.rt] + instr.svar.immediate;
 	  break;
-	case 4:		/* op: SUBI rs: r# rt: r# immediate: val */
+	case 5:		/* op: SUBI rs: r# rt: r# immediate: val */
 	  vm->iregs[instr.svar.rs] =
 	    vm->iregs[instr.svar.rt] - instr.svar.immediate;
 	  break;
-	case 5:		/* op: MULI rs: r# rt: r# immediate: val */
+	case 6:		/* op: MULI rs: r# rt: r# immediate: val */
 	  vm->iregs[instr.svar.rs] =
 	    vm->iregs[instr.svar.rt] * instr.svar.immediate;
 	  break;
-	case 6:		/* op: DIVI rs: r# rt: r# immediate: val */
+	case 7:		/* op: DIVI rs: r# rt: r# immediate: val */
+	  if (instr.svar.immediate == 0)
+	    return (status_t)
+	    {
+	    .state = DIV_BY_ZERO,.uid = 0};
 	  vm->iregs[instr.svar.rs] =
 	    vm->iregs[instr.svar.rt] / instr.svar.immediate;
 	  break;
-	case 7:		/* op: MODI rs: r# rt: r# immediate: val */
+	case 8:		/* op: MODI rs: r# rt: r# immediate: val */
 	  vm->iregs[instr.svar.rs] =
 	    vm->iregs[instr.svar.rt] % instr.svar.immediate;
 	  break;
-	case 8:		/* op: ANDI rs: r# rt: r# immediate: val */
+	case 9:		/* op: ANDI rs: r# rt: r# immediate: val */
 	  vm->iregs[instr.svar.rs] =
 	    vm->iregs[instr.svar.rt] & instr.svar.immediate;
 	  break;
-	case 9:		/* op: ORI rs: r# rt: r# immediate: val */
+	case 10:		/* op: ORI rs: r# rt: r# immediate: val */
 	  vm->iregs[instr.svar.rs] =
 	    vm->iregs[instr.svar.rt] | instr.svar.immediate;
 	  break;
-	case 10:		/* op: XORI rs: r# rt: r# immediate: val */
+	case 11:		/* op: XORI rs: r# rt: r# immediate: val */
 	  vm->iregs[instr.svar.rs] =
 	    vm->iregs[instr.svar.rt] ^ instr.svar.immediate;
 	  break;
-	case 11:		/* op: CALL target: val */
+	case 12:		/* op: CALL target: val */
 	  if (vm->sp >= vm->stack_size)
-	    return 1;		/* ERR:STACK OVERFLOW */
+	    return (status_t)
+	    {
+	    .state = STACK_OFLOW,.uid = 0};
 	  vm->stack[vm->sp++] = vm->ip + 1;	/* Intentional Fallthrough! */
-	case 12:		/* op: JMP target: val */
+	case 13:		/* op: JMP target: val */
 	  vm->ip = instr.tvar.target;
 	  continue;
-	case 13:
+	case 14:		/* op: RET */
 	  if (vm->sp == 0)
-	    return 1;		/* ERR: STACK UNDERFLOW */
+	    return (status_t)
+	    {
+	    .state = STACK_UFLOW,.uid = 0};
 	  vm->ip = vm->stack[--vm->sp];
 	  continue;
 	case 15:		/* op: JE rs: r# rt: r# immediate: val */
@@ -286,21 +286,21 @@ exec_bytecode (rlvm_t * vm, const size_t len, opcode_t * ops)
 	      continue;
 	    }
 	  break;
-	case 17:		/* op: JL rs: r# rt: r# immediate: val */
+	case 16:		/* op: JL rs: r# rt: r# immediate: val */
 	  if (vm->iregs[instr.svar.rs] < vm->iregs[instr.svar.rt])
 	    {
 	      vm->ip = instr.svar.immediate;
 	      continue;
 	    }
 	  break;
-	case 18:		/* op: JG rs: r# rt: r# immediate: val */
+	case 17:		/* op: JG rs: r# rt: r# immediate: val */
 	  if (vm->iregs[instr.svar.rs] > vm->iregs[instr.svar.rt])
 	    {
 	      vm->ip = instr.svar.immediate;
 	      continue;
 	    }
 	  break;
-	case 19:		/* op: JSL rs: r# rt: r# immediate: val */
+	case 18:		/* op: JSL rs: r# rt: r# immediate: val */
 	  if ((int64_t) vm->iregs[instr.svar.rs] <
 	      (int64_t) vm->iregs[instr.svar.rt])
 	    {
@@ -308,7 +308,7 @@ exec_bytecode (rlvm_t * vm, const size_t len, opcode_t * ops)
 	      continue;
 	    }
 	  break;
-	case 20:		/* op: JSG rs: r# rt: r# immediate: val */
+	case 19:		/* op: JSG rs: r# rt: r# immediate: val */
 	  if ((int64_t) vm->iregs[instr.svar.rs] >
 	      (int64_t) vm->iregs[instr.svar.rt])
 	    {
@@ -316,36 +316,36 @@ exec_bytecode (rlvm_t * vm, const size_t len, opcode_t * ops)
 	      continue;
 	    }
 	  break;
-	case 21:		/* op: JFE rs: r# rt: r# immediate: val */
+	case 20:		/* op: JFE rs: r# rt: r# immediate: val */
 	  if (vm->fregs[instr.svar.rs] == vm->fregs[instr.svar.rt])
 	    {
 	      vm->ip = instr.svar.immediate;
 	      continue;
 	    }
 	  break;
-	case 22:		/* op: JFL rs: r# rt: r# immediate: val */
+	case 21:		/* op: JFL rs: r# rt: r# immediate: val */
 	  if (vm->fregs[instr.svar.rs] < vm->fregs[instr.svar.rt])
 	    {
 	      vm->ip = instr.svar.immediate;
 	      continue;
 	    }
 	  break;
-	case 23:		/* op: JFG rs: r# rt: r# immediate: val */
+	case 22:		/* op: JFG rs: r# rt: r# immediate: val */
 	  if (vm->fregs[instr.svar.rs] > vm->fregs[instr.svar.rt])
 	    {
 	      vm->ip = instr.svar.immediate;
 	      continue;
 	    }
 	  break;
-	case 24:		/* op: JOF target: sval */
+	case 23:		/* op: JOF target: sval */
 	  vm->ip += __pad_sign_bit (instr.tvar.target, 26);
 	  continue;
-	case 25:		/* op: JIR rs: r# rt: << immediate: sval */
+	case 24:		/* op: JIR rs: r# rt: << immediate: sval */
 	  vm->ip =
 	    (vm->iregs[instr.svar.rs] << instr.svar.rt) +
 	    instr.svar.immediate;
 	  continue;
-	case 26:		/* op: JZ rs: r# rt: (not used) immediate: val */
+	case 25:		/* op: JZ rs: r# rt: (not used) immediate: val */
 	  if (vm->iregs[instr.svar.rs] == 0)
 	    {
 	      vm->ip = instr.svar.immediate;
@@ -355,5 +355,7 @@ exec_bytecode (rlvm_t * vm, const size_t len, opcode_t * ops)
 	}
       vm->ip += 1;
     }
-  return 0;
+  return (status_t)
+  {
+  .state = CLEAN,.uid = 0};
 }

@@ -8,6 +8,22 @@
 #include <stdlib.h>
 #include <inttypes.h>
 
+/**
+ * This is used as both the return value of a VM instance and
+ * also an exception construct. The field uid should only be
+ * queried when the state is CLEAN or USER_DEFINED. In all
+ * other cases, the uid should be zero although this is not
+ * guaranteed.
+ */
+typedef struct status_t
+{
+  enum
+  {
+    CLEAN = 0, DIV_BY_ZERO, STACK_OFLOW, STACK_UFLOW, OUT_OF_MEM, USER_DEFINED
+  } state;
+  uint64_t uid;
+} status_t;
+
 /*
  * The opcode layout is very similar to the MIPS ISA
  *
@@ -80,7 +96,8 @@ extern "C"
 
   extern void clean_rlvm (rlvm_t * vm);
 
-  extern int exec_bytecode (rlvm_t * vm, const size_t len, opcode_t * ops);
+  extern status_t exec_bytecode (rlvm_t * vm, const size_t len,
+				 opcode_t * ops);
 
 #ifdef __cplusplus
 };
