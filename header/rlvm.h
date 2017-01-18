@@ -33,19 +33,39 @@
 #include <inttypes.h>
 
 /**
+ * This is only used inside of the VM. On fault (or
+ * exception), the stack unwinds until it reaches
+ * the same location as its previous location
+ * removing local variables allocated by another
+ * function. The deallocation process does not
+ * free the chunks on the heap.
+ */
+typedef struct ehandle_t
+{
+  uint64_t on_fault;
+  uint64_t old_sp;
+} ehandle_t;
+
+/**
  * This is used as both the return value of a VM instance and
  * also an exception construct. The field uid should only be
- * queried when the state is CLEAN or USER_DEFINED. In all
- * other cases, the uid should be zero although this is not
- * guaranteed.
+ * queried when the state is CLEAN (return value), BAD_OPCODE
+ * (the instruction that was illegal) and USER_DEFINED
+ * (unique id). In all other cases, the uid should be zero
+ * although this is not guaranteed.
  */
-typedef struct status_t
+typedef union status_t
 {
-  enum
+  struct
   {
-    CLEAN = 0, DIV_BY_ZERO, STACK_OFLOW, STACK_UFLOW, OUT_OF_MEM, USER_DEFINED
-  } state;
-  uint64_t uid;
+    enum
+    {
+      CLEAN = 0, DIV_BY_ZERO, STACK_OFLOW, STACK_UFLOW, OUT_OF_MEM,
+      BAD_OPCODE, USER_DEFINED
+    } state:4;			/* Making it 4 bits for future states */
+    uint64_t uid:60;		/* This should be enough */
+  };
+  uint64_t bytes;
 } status_t;
 
 /*
@@ -101,12 +121,16 @@ typedef union opcode_t
 
 typedef struct rlvm_t
 {
-  size_t stack_size;
-  size_t sp;
-  size_t ip;
-  uint64_t iregs[ALLOC_REGS_COUNT];
-  double fregs[ALLOC_REGS_COUNT];
-  size_t *stack;
+  uint64_t stack_size;		/* Call stack size */
+  uint64_t handler_size;	/* Exception handler stack size */
+  uint64_t sp;			/* Call stack pointer */
+  uint64_t ip;			/* Instruction pointer */
+  uint64_t esp;			/* Exception stack pointer */
+  status_t state;		/* VM state, also stores latest exception */
+  uint64_t iregs[ALLOC_REGS_COUNT];	/* Integer registers */
+  double fregs[ALLOC_REGS_COUNT];	/* Float point registers */
+  uint64_t *stack;		/* Call stack */
+  ehandle_t *estack;		/* Exception stack */
 } rlvm_t;
 
 #ifdef __cplusplus
@@ -114,13 +138,13 @@ extern "C"
 {
 #endif				/* !__cplusplus */
 
-  extern rlvm_t init_rlvm (size_t stack_size);
+  extern rlvm_t init_rlvm (uint64_t stack_size, uint64_t handler_size);
 
   extern void print_rlvm_state (rlvm_t * vm);
 
   extern void clean_rlvm (rlvm_t * vm);
 
-  extern status_t exec_bytecode (rlvm_t * vm, const size_t len,
+  extern status_t exec_bytecode (rlvm_t * vm, const uint64_t len,
 				 opcode_t * ops);
 
 #ifdef __cplusplus

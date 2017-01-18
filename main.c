@@ -39,7 +39,7 @@ print_binary (int num, size_t width)
 int
 main (void)
 {
-  rlvm_t vm = init_rlvm (0);
+  rlvm_t vm = init_rlvm (0, 0);
 
   /*
    * Calculate the gcd of 48 and 180

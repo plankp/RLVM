@@ -35,11 +35,15 @@ union fp_i_conv_t
 };
 
 rlvm_t
-init_rlvm (size_t stack_size)
+init_rlvm (uint64_t stack_size, uint64_t handler_size)
 {
   return (rlvm_t)
   {
-    .stack_size = stack_size,.sp = 0,.ip = 0,.iregs =
+    .stack_size = stack_size,.handler_size = handler_size,.sp = 0,.ip =
+      0,.esp = 0,.state = (status_t)
+    {
+    .state = CLEAN,.uid = 0}
+    ,.iregs =
     {
     0}
     ,				/* Set to zero */
@@ -47,7 +51,10 @@ init_rlvm (size_t stack_size)
     {
     0}
     ,				/* Set to zero */
-  .stack = stack_size == 0 ? NULL : calloc (stack_size, sizeof (size_t))};
+  .stack =
+      stack_size == 0 ? NULL : calloc (stack_size,
+					   sizeof (uint64_t)),.estack =
+      handler_size == 0 ? NULL : calloc (handler_size, sizeof (ehandle_t))};
 }
 
 void
@@ -71,17 +78,29 @@ clean_rlvm (rlvm_t * vm)
   free (vm->stack);
   vm->stack_size = 0;
   vm->stack = NULL;
+  free (vm->estack);
+  vm->handler_size = 0;
+  vm->estack = NULL;
 }
 
 static inline int64_t
 __pad_sign_bit (uint64_t x, size_t width)
 {
   const uint64_t max_val = 1 << --width;
-  return ((x & (max_val - 1)) - max_val * ((x >> (width)) & 1));
+  return (x & (max_val - 1)) - max_val * ((x >> (width)) & 1);
 }
 
+#define VM_THROW(vm, st, id, flbl)		\
+  do {						\
+  vm->state = (status_t) {			\
+    .state = st,				\
+    .uid = id					\
+  };						\
+  goto flbl;					\
+  } while (0)
+
 status_t
-exec_bytecode (rlvm_t * vm, const size_t len, opcode_t * ops)
+exec_bytecode (rlvm_t * vm, const uint64_t len, opcode_t * ops)
 {
   while (vm->ip < len)
     {
@@ -93,9 +112,7 @@ exec_bytecode (rlvm_t * vm, const size_t len, opcode_t * ops)
 	  switch (instr.fvar.fn)
 	    {
 	    case 0:		/* op: HALT rs: r# */
-	      return (status_t)
-	      {
-	      .state = CLEAN,.uid = vm->iregs[instr.fvar.rs]};
+	      VM_THROW (vm, CLEAN, vm->iregs[instr.fvar.rs], on_fault);
 	    case 1:		/* op: MRI rs: r# rd: r# sa: acc */
 	      switch (instr.fvar.sa)
 		{
@@ -167,6 +184,67 @@ exec_bytecode (rlvm_t * vm, const size_t len, opcode_t * ops)
 		  break;
 		}
 	      break;
+	    case 6:		/* op: REH (remove exception handler) */
+	      if (vm->esp == 0)
+		VM_THROW (vm, STACK_UFLOW, 0, on_fault);
+	      vm->esp -= 1;
+	      continue;
+	    case 7:		/* op: TRE rs: r# (throw exception) */
+	      VM_THROW (vm, USER_DEFINED, vm->iregs[instr.fvar.rs], on_fault);
+	    case 8:		/* op: STK rs: r# rt: r# rd: r# sa: n */
+	      /* If sa has the thrid bit on, it means pop. Push otherwise */
+	      if ((instr.fvar.sa & 4) == 1)
+		{
+		  if (vm->sp - (instr.fvar.sa & 2) == 0)
+		    VM_THROW (vm, STACK_UFLOW, 0, on_fault);
+		  switch (instr.fvar.sa & 2)
+		    {
+		    case 2:
+		      vm->iregs[instr.fvar.rs] = vm->stack[--vm->sp];
+		      vm->iregs[instr.fvar.rt] = vm->stack[--vm->sp];
+		      vm->iregs[instr.fvar.rd] = vm->stack[--vm->sp];
+		      break;
+		    case 1:
+		      vm->iregs[instr.fvar.rs] = vm->stack[--vm->sp];
+		      vm->iregs[instr.fvar.rt] = vm->stack[--vm->sp];
+		      break;
+		    case 0:
+		      vm->iregs[instr.fvar.rs] = vm->stack[--vm->sp];
+		      break;
+		    }
+		  break;
+		}
+	      if (vm->sp >= vm->stack_size - (instr.fvar.sa & 2))
+		VM_THROW (vm, STACK_OFLOW, 0, on_fault);
+	      switch (instr.fvar.sa & 2)
+		{
+		case 2:
+		  vm->stack[vm->sp++] = vm->iregs[instr.fvar.rd];
+		  /* Intentional Fallthrough! */
+		case 1:
+		  vm->stack[vm->sp++] = vm->iregs[instr.fvar.rt];
+		  /* Intentional Fallthrough! */
+		case 0:
+		  vm->stack[vm->sp++] = vm->iregs[instr.fvar.rs];
+		  break;
+		}
+	      break;
+	    case 9:		/* op: LDE rd: r# sa: subop */
+	      switch (instr.fvar.sa)
+		{
+		case 2:	/* Push state onto the stack and load into rd */
+		  vm->iregs[instr.fvar.rd] = vm->state.bytes;
+		  /* Intentional Fallthrough! */
+		case 1:	/* Push state onto the stack */
+		  if (vm->sp >= vm->stack_size)
+		    VM_THROW (vm, STACK_OFLOW, 0, on_fault);
+		  vm->stack[vm->sp++] = vm->state.bytes;
+		  break;
+		case 0:	/* Load into rd */
+		  vm->iregs[instr.fvar.rd] = vm->state.bytes;
+		  break;
+		}
+	      break;
 	    }
 	  break;
 	case 1:		/* op: @ALU rs: r# rt: r# rd: r# */
@@ -183,7 +261,8 @@ exec_bytecode (rlvm_t * vm, const size_t len, opcode_t * ops)
 		rhs >>= instr.fvar.sa;
 		break;
 	      case 3:
-		rhs = ((int16_t) rhs) >> instr.fvar.sa;
+		rhs = ((int64_t) rhs) >> instr.fvar.sa;
+		break;
 	      }
 	    switch (instr.fvar.fn & 15)	/* remaining 4 bits specify the op */
 	      {
@@ -199,9 +278,7 @@ exec_bytecode (rlvm_t * vm, const size_t len, opcode_t * ops)
 		break;
 	      case 3:		/* rd = rs / rhs */
 		if (rhs == 0)
-		  return (status_t)
-		  {
-		  .state = DIV_BY_ZERO,.uid = 0};
+		  VM_THROW (vm, DIV_BY_ZERO, 0, on_fault);
 		vm->iregs[instr.fvar.rd] = vm->iregs[instr.fvar.rs] / rhs;
 		break;
 	      case 4:		/* rd = rs % rhs */
@@ -219,34 +296,33 @@ exec_bytecode (rlvm_t * vm, const size_t len, opcode_t * ops)
 	      case 8:		/* rd = NOT rhs */
 		vm->iregs[instr.fvar.rd] = ~rhs;
 		break;
-		/* End of integer oriented instructions */
-		break;
 	      }
-	case 2:
-	    switch (instr.fvar.fn)
-	      {
-	      case 0:		/* rd = rs + rt [fp] */
-		vm->fregs[instr.fvar.rd] = vm->fregs[instr.fvar.rs] +
-		  vm->fregs[instr.fvar.rt];
-		break;
-	      case 1:		/* rd = rs - rt [fp] */
-		vm->fregs[instr.fvar.rd] = vm->fregs[instr.fvar.rs] -
-		  vm->fregs[instr.fvar.rt];
-		break;
-	      case 2:		/* rd = rs * rt [fp] */
-		vm->fregs[instr.fvar.rd] = vm->fregs[instr.fvar.rs] *
-		  vm->fregs[instr.fvar.rt];
-		break;
-	      case 3:		/* rd = rs / rt [fp] */
-		vm->fregs[instr.fvar.rd] = vm->fregs[instr.fvar.rs] /
-		  vm->fregs[instr.fvar.rt];
-		break;
-	      case 4:		/* rd = rs % rt [fp] */
-		vm->fregs[instr.fvar.rd] = fmod (vm->fregs[instr.fvar.rs],
-						 vm->fregs[instr.fvar.rt]);
-		break;
-	      }
+	    break;
 	  }
+	case 2:
+	  switch (instr.fvar.fn)
+	    {
+	    case 0:		/* rd = rs + rt [fp] */
+	      vm->fregs[instr.fvar.rd] = vm->fregs[instr.fvar.rs] +
+		vm->fregs[instr.fvar.rt];
+	      break;
+	    case 1:		/* rd = rs - rt [fp] */
+	      vm->fregs[instr.fvar.rd] = vm->fregs[instr.fvar.rs] -
+		vm->fregs[instr.fvar.rt];
+	      break;
+	    case 2:		/* rd = rs * rt [fp] */
+	      vm->fregs[instr.fvar.rd] = vm->fregs[instr.fvar.rs] *
+		vm->fregs[instr.fvar.rt];
+	      break;
+	    case 3:		/* rd = rs / rt [fp] */
+	      vm->fregs[instr.fvar.rd] = vm->fregs[instr.fvar.rs] /
+		vm->fregs[instr.fvar.rt];
+	      break;
+	    case 4:		/* rd = rs % rt [fp] */
+	      vm->fregs[instr.fvar.rd] = fmod (vm->fregs[instr.fvar.rs],
+					       vm->fregs[instr.fvar.rt]);
+	      break;
+	    }
 	  break;
 	case 3:		/* op: LDI rs: r# rt: << immediate: val */
 	  vm->iregs[instr.svar.rs] = instr.svar.immediate << instr.svar.rt;
@@ -265,9 +341,7 @@ exec_bytecode (rlvm_t * vm, const size_t len, opcode_t * ops)
 	  break;
 	case 7:		/* op: DIVI rs: r# rt: r# immediate: val */
 	  if (instr.svar.immediate == 0)
-	    return (status_t)
-	    {
-	    .state = DIV_BY_ZERO,.uid = 0};
+	    VM_THROW (vm, DIV_BY_ZERO, 0, on_fault);
 	  vm->iregs[instr.svar.rs] =
 	    vm->iregs[instr.svar.rt] / instr.svar.immediate;
 	  break;
@@ -289,18 +363,14 @@ exec_bytecode (rlvm_t * vm, const size_t len, opcode_t * ops)
 	  break;
 	case 12:		/* op: CALL target: val */
 	  if (vm->sp >= vm->stack_size)
-	    return (status_t)
-	    {
-	    .state = STACK_OFLOW,.uid = 0};
+	    VM_THROW (vm, STACK_OFLOW, 0, on_fault);
 	  vm->stack[vm->sp++] = vm->ip + 1;	/* Intentional Fallthrough! */
 	case 13:		/* op: JMP target: val */
 	  vm->ip = instr.tvar.target;
 	  continue;
 	case 14:		/* op: RET */
 	  if (vm->sp == 0)
-	    return (status_t)
-	    {
-	    .state = STACK_UFLOW,.uid = 0};
+	    VM_THROW (vm, STACK_UFLOW, 0, on_fault);
 	  vm->ip = vm->stack[--vm->sp];
 	  continue;
 	case 15:		/* op: JE rs: r# rt: r# immediate: val */
@@ -376,10 +446,34 @@ exec_bytecode (rlvm_t * vm, const size_t len, opcode_t * ops)
 	      continue;
 	    }
 	  break;
+	case 26:		/* op: IEH target: val (set exception handler) */
+	  if (vm->esp >= vm->handler_size)
+	    VM_THROW (vm, STACK_OFLOW, 0, on_fault);
+	  vm->estack[vm->esp++] = (ehandle_t)
+	  {
+	  .on_fault = instr.tvar.target,.old_sp = vm->sp};
+	  break;
+	default:
+	  VM_THROW (vm, BAD_OPCODE, instr.bytes, on_fault);
 	}
       vm->ip += 1;
+      continue;
+    on_fault:
+      /* If state is set to CLEAN, that means it was a halt instruction */
+      if (vm->state.state == CLEAN)
+	break;
+      /*
+       * Check which handler should be used. Due to the way the handlers
+       * are done, jumping into a try block is not a good idea. If that
+       * happens, the try block will not be registered and you will end
+       * up triggering another catch block.
+       */
+      if (vm->esp == 0)
+	break;
+      const ehandle_t handle = vm->estack[--vm->esp];
+      vm->ip = handle.on_fault;
+      while (vm->sp != handle.old_sp)
+	vm->sp -= 1;
     }
-  return (status_t)
-  {
-  .state = CLEAN,.uid = 0};
+  return vm->state;
 }
