@@ -91,13 +91,15 @@ __pad_sign_bit (uint64_t x, size_t width)
 }
 
 #define VM_THROW(vm, st, id, flbl)		\
-  do {						\
-  vm->state = (status_t) {			\
-    .state = st,				\
-    .uid = id					\
-  };						\
-  goto flbl;					\
-  } while (0)
+  do						\
+    {						\
+      vm->state = (status_t) {			\
+	.state = st,				\
+	.uid = id				\
+      };					\
+      goto flbl;				\
+    }						\
+  while (0)
 
 status_t
 exec_bytecode (rlvm_t * vm, const uint64_t len, opcode_t * ops)
@@ -452,6 +454,47 @@ exec_bytecode (rlvm_t * vm, const uint64_t len, opcode_t * ops)
 	  vm->estack[vm->esp++] = (ehandle_t)
 	  {
 	  .on_fault = instr.tvar.target,.old_sp = vm->sp};
+	  break;
+	case 27:		/* op: LDST rs: mode rt: r# immediate: signed offset */
+	  {
+	    const int64_t offset = __pad_sign_bit (instr.svar.immediate, 16);
+	    if (vm->sp + offset >= vm->stack_size)
+	      VM_THROW (vm, STACK_OFLOW, 0, on_fault);
+	    switch (instr.fvar.rs)
+	      {
+	      case 0:		/* Load into iregs */
+		vm->iregs[instr.svar.rt] = vm->stack[vm->sp + offset];
+		break;
+	      case 1:		/* Load into fregs (reinterpret cast) */
+		{
+		  union fp_i_conv_t conv = (union fp_i_conv_t) {
+		    .ival = vm->stack[vm->sp + offset]
+		  };
+		  vm->fregs[instr.fvar.rt] = conv.fval;
+		  break;
+		}
+	      case 2:		/* Store iregs onto stack */
+		vm->stack[vm->sp + offset] = vm->iregs[instr.svar.rt];
+		break;
+	      case 3:		/* Store fregs onto stack (texture value) */
+		vm->stack[vm->sp + offset] = floor (vm->fregs[instr.fvar.rt]);
+		break;
+	      case 4:		/* Store fregs onto stack (reinterpret cast) */
+		{
+		  union fp_i_conv_t conv = (union fp_i_conv_t) {
+		    .fval = vm->fregs[instr.fvar.rt]
+		  };
+		  vm->stack[vm->sp + offset] = conv.ival;
+		  break;
+		}
+	      }
+	    break;
+	  }
+	case 28:		/* op: ALLOC rt: r# immediate: val */
+	  vm->iregs[instr.svar.rt] = (uint64_t) malloc (instr.svar.immediate);
+	  break;
+	case 29:		/* op: FREE rt: r# */
+	  free ((void *) vm->iregs[instr.svar.rt]);
 	  break;
 	default:
 	  VM_THROW (vm, BAD_OPCODE, instr.bytes, on_fault);
