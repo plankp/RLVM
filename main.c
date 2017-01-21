@@ -22,8 +22,13 @@
  * SOFTWARE.
  */
 
-#include <endian.h>
 #include "rlvm.h"
+#include "bcode.h"
+
+#include <stdio.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <stdbool.h>
 
 void
 print_binary (int num, size_t width)
@@ -37,7 +42,7 @@ print_binary (int num, size_t width)
 }
 
 int
-main (void)
+gcd_demo (void)
 {
   rlvm_t vm = init_rlvm (0, 0);
 
@@ -97,5 +102,32 @@ main (void)
 
   print_rlvm_state (&vm);
   clean_rlvm (&vm);
+  return 0;
+}
+
+int
+main (int argc, char **argv)
+{
+  if (argc != 2)
+    return 1;
+
+  FILE *f = fopen (argv[1], "rb");
+  bcode_t tmp;
+  if (read_bytecode (f, &tmp) == NULL)
+    {
+      fprintf (stderr, "Failed interpreting bytecode\n");
+      return 2;
+    }
+  fclose (f);
+
+  rlvm_t vm;
+  status_t retval = exec_bcode_t (&vm, &tmp);
+  if (retval.state != CLEAN)
+    printf ("VM EXITED WITH NON-ZERO VALUE! (%d: %d)\n", retval.state,
+	    retval.uid);
+
+  print_rlvm_state (&vm);
+  clean_rlvm (&vm);
+  clean_bcode (&tmp);
   return 0;
 }
