@@ -90,6 +90,22 @@ __pad_sign_bit (uint64_t x, size_t width)
   return (x & (max_val - 1)) - max_val * ((x >> (width)) & 1);
 }
 
+static inline uint64_t
+__rotate_left (uint64_t x, size_t times)
+{
+  if (times % 64 == 0)
+    return x;
+  return x << times | x >> (64 - times);
+}
+
+static inline uint64_t
+__rotate_right (uint64_t x, size_t times)
+{
+  if (times % 64 == 0)
+    return x;
+  return x >> times | x << (64 - times);
+}
+
 #define VM_THROW(vm, st, id, flbl)		\
   do						\
     {						\
@@ -298,6 +314,24 @@ exec_bytecode (rlvm_t * vm, const uint64_t len, opcode_t * ops)
 	      case 8:		/* rd = NOT rhs */
 		vm->iregs[instr.fvar.rd] = ~rhs;
 		break;
+	      case 9:		/* rd = rs LSH rhs */
+		vm->iregs[instr.fvar.rd] = vm->iregs[instr.fvar.rs] << rhs;
+		break;
+	      case 10:		/* rd = rs RSH rhs */
+		vm->iregs[instr.fvar.rd] = vm->iregs[instr.fvar.rs] >> rhs;
+		break;
+	      case 11:		/* rd = rs SRSH rhs */
+		vm->iregs[instr.fvar.rd] =
+		  ((int64_t) vm->iregs[instr.fvar.rs]) >> rhs;
+		break;
+	      case 12:		/* rd = rs ROL rhs */
+		vm->iregs[instr.fvar.rd] =
+		  __rotate_left (vm->iregs[instr.fvar.rs], rhs);
+		break;
+	      case 13:		/* rd = rs ROR rhs */
+		vm->iregs[instr.fvar.rd] =
+		  __rotate_right (vm->iregs[instr.fvar.rs], rhs);
+		break;
 	      }
 	    break;
 	  }
@@ -455,7 +489,7 @@ exec_bytecode (rlvm_t * vm, const uint64_t len, opcode_t * ops)
 	  {
 	  .on_fault = instr.tvar.target,.old_sp = vm->sp};
 	  break;
-	case 27:		/* op: LDST rs: mode rt: r# immediate: signed offset */
+	case 27:		/* op: SLS rs: mode rt: r# immediate: signed offset */
 	  {
 	    const int64_t offset = __pad_sign_bit (instr.svar.immediate, 16);
 	    if (vm->sp + offset >= vm->stack_size)
@@ -496,6 +530,62 @@ exec_bytecode (rlvm_t * vm, const uint64_t len, opcode_t * ops)
 	case 29:		/* op: FREE rt: r# */
 	  free ((void *) vm->iregs[instr.svar.rt]);
 	  break;
+	case 30:		/* op: HLDB rs: base rt: r# immediate: signed offset */
+	  {
+	    const int64_t offset = __pad_sign_bit (instr.svar.immediate, 16);
+	    uint8_t *ptr = (uint8_t *) (((char *) instr.fvar.rs) + offset);
+	    vm->iregs[instr.svar.rt] = *ptr;
+	    break;
+	  }
+	case 31:		/* op: HLDW rs: base rt: r# immediate: signed offset */
+	  {
+	    const int64_t offset = __pad_sign_bit (instr.svar.immediate, 16);
+	    uint16_t *ptr = (uint16_t *) (((char *) instr.fvar.rs) + offset);
+	    vm->iregs[instr.svar.rt] = *ptr;
+	    break;
+	  }
+	case 32:		/* op: HLDD rs: base rt: r# immediate: signed offset */
+	  {
+	    const int64_t offset = __pad_sign_bit (instr.svar.immediate, 16);
+	    uint32_t *ptr = (uint32_t *) (((char *) instr.fvar.rs) + offset);
+	    vm->iregs[instr.svar.rt] = *ptr;
+	    break;
+	  }
+	case 33:		/* op: HLDQ rs: base rt: r# immediate: signed offset */
+	  {
+	    const int64_t offset = __pad_sign_bit (instr.svar.immediate, 16);
+	    uint64_t *ptr = (uint64_t *) (((char *) instr.fvar.rs) + offset);
+	    vm->iregs[instr.svar.rt] = *ptr;
+	    break;
+	  }
+	case 34:		/* op: HSTB rs: base rt: r# immediate: signed offset */
+	  {
+	    const int64_t offset = __pad_sign_bit (instr.svar.immediate, 16);
+	    uint8_t *ptr = (uint8_t *) (((char *) instr.fvar.rs) + offset);
+	    *ptr = vm->iregs[instr.svar.rt];
+	    break;
+	  }
+	case 35:		/* op: HSTW rs: base rt: r# immediate: signed offset */
+	  {
+	    const int64_t offset = __pad_sign_bit (instr.svar.immediate, 16);
+	    uint16_t *ptr = (uint16_t *) (((char *) instr.fvar.rs) + offset);
+	    *ptr = vm->iregs[instr.svar.rt];
+	    break;
+	  }
+	case 36:		/* op: HSTD rs: base rt: r# immediate: signed offset */
+	  {
+	    const int64_t offset = __pad_sign_bit (instr.svar.immediate, 16);
+	    uint32_t *ptr = (uint32_t *) (((char *) instr.fvar.rs) + offset);
+	    *ptr = vm->iregs[instr.svar.rt];
+	    break;
+	  }
+	case 37:		/* op: HSTQ rs: base rt: r# immediate: signed offset */
+	  {
+	    const int64_t offset = __pad_sign_bit (instr.svar.immediate, 16);
+	    uint64_t *ptr = (uint64_t *) (((char *) instr.fvar.rs) + offset);
+	    *ptr = vm->iregs[instr.svar.rt];
+	    break;
+	  }
 	default:
 	  VM_THROW (vm, BAD_OPCODE, instr.bytes, on_fault);
 	}
