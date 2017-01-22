@@ -473,10 +473,15 @@ exec_bytecode (rlvm_t * vm, const uint64_t len, opcode_t * ops)
 	case 24:		/* op: JIR rs: r# rt: << immediate: sval */
 	  vm->ip =
 	    (vm->iregs[instr.svar.rs] << instr.svar.rt) +
-	    instr.svar.immediate;
+	    __pad_sign_bit (instr.svar.immediate, 16);
 	  continue;
-	case 25:		/* op: JZ rs: r# rt: (not used) immediate: val */
-	  if (vm->iregs[instr.svar.rs] == 0)
+	case 25:		/* op: JZ rs: r# rt: mode immediate: val */
+	  if ((instr.svar.rt == 0) && (vm->iregs[instr.svar.rs] == 0))
+	    {
+	      vm->ip = instr.svar.immediate;
+	      continue;
+	    }
+	  if ((instr.svar.rt == 1) && (vm->fregs[instr.svar.rs] == 0))
 	    {
 	      vm->ip = instr.svar.immediate;
 	      continue;
@@ -524,8 +529,16 @@ exec_bytecode (rlvm_t * vm, const uint64_t len, opcode_t * ops)
 	      }
 	    break;
 	  }
-	case 28:		/* op: ALLOC rt: r# immediate: val */
-	  vm->iregs[instr.svar.rt] = (uint64_t) malloc (instr.svar.immediate);
+	case 28:		/* op: ALLOC rt: r# rs: r# immediate: val */
+	  if (instr.svar.immediate == 0)
+	    {
+	      vm->iregs[instr.svar.rt] = (uint64_t) malloc (instr.svar.rs);
+	    }
+	  else
+	    {
+	      vm->iregs[instr.svar.rt] =
+		(uint64_t) malloc (instr.svar.immediate);
+	    }
 	  break;
 	case 29:		/* op: FREE rt: r# */
 	  free ((void *) vm->iregs[instr.svar.rt]);
