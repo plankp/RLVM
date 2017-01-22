@@ -1083,6 +1083,136 @@ typedef struct bcode_t
     }						\
   }
 
+/**
+ * Skip compare: int registers are equal
+ */
+#define RLVM_SIREQ(ir1, ir2)			\
+  (opcode_t) {					\
+    .svar = (op_svar_t) {			\
+      .opcode = 38,				\
+      .rs = ir1,				\
+      .rt = ir2,				\
+      .immediate = 0				\
+    }						\
+  }
+
+/**
+ * Skip compare: float registers are equal
+ */
+#define RLVM_SFREQ(fr1, fr2)			\
+  (opcode_t) {					\
+    .svar = (op_svar_t) {			\
+      .opcode = 38,				\
+      .rs = fr1,				\
+      .rt = fr2,				\
+      .immediate = 0 | 8			\
+    }						\
+  }
+
+/**
+ * Skip compare: int registers are less
+ */
+#define RLVM_SIRL(ir1, ir2)			\
+  (opcode_t) {					\
+    .svar = (op_svar_t) {			\
+      .opcode = 38,				\
+      .rs = ir1,				\
+      .rt = ir2,				\
+      .immediate = 1				\
+    }						\
+  }
+
+/**
+ * Skip compare: signed int registers are less
+ */
+#define RLVM_SIRSL(ir1, ir2)			\
+  (opcode_t) {					\
+    .svar = (op_svar_t) {			\
+      .opcode = 38,				\
+      .rs = ir1,				\
+      .rt = ir2,				\
+      .immediate = 1 | 4			\
+    }						\
+  }
+
+/**
+ * Skip compare: float registers are less
+ */
+#define RLVM_SFRL(fr1, fr2)			\
+  (opcode_t) {					\
+    .svar = (op_svar_t) {			\
+      .opcode = 38,				\
+      .rs = fr1,				\
+      .rt = fr2,				\
+      .immediate = 1 | 8			\
+    }						\
+  }
+
+/**
+ * Skip compare: int registers are more
+ */
+#define RLVM_SIRG(ir1, ir2)			\
+  (opcode_t) {					\
+    .svar = (op_svar_t) {			\
+      .opcode = 38,				\
+      .rs = ir1,				\
+      .rt = ir2,				\
+      .immediate = 2				\
+    }						\
+  }
+
+/**
+ * Skip compare: signed int registers are more
+ */
+#define RLVM_SIRSG(ir1, ir2)			\
+  (opcode_t) {					\
+    .svar = (op_svar_t) {			\
+      .opcode = 38,				\
+      .rs = ir1,				\
+      .rt = ir2,				\
+      .immediate = 2 | 4			\
+    }						\
+  }
+
+/**
+ * Skip compare: float registers are more
+ */
+#define RLVM_SFRG(fr1, fr2)			\
+  (opcode_t) {					\
+    .svar = (op_svar_t) {			\
+      .opcode = 38,				\
+      .rs = fr1,				\
+      .rt = fr2,				\
+      .immediate = 2 | 8			\
+    }						\
+  }
+
+/**
+ * Skip compare: int register is zero
+ */
+#define RLVM_SIRZ(ireg)				\
+  (opcode_t) {					\
+    .svar = (op_svar_t) {			\
+      .opcode = 38,				\
+      .rs = ireg,				\
+      .rt = 0,					\
+      .immediate = 3				\
+    }						\
+  }
+
+/**
+ * Skip compare: float register is zero
+ */
+#define RLVM_SFRZ(freg)				\
+  (opcode_t) {					\
+    .svar = (op_svar_t) {			\
+      .opcode = 38,				\
+      .rs = freg,				\
+      .rt = 0,					\
+      .immediate = 3 | 8			\
+    }						\
+  }
+
 #ifdef __cplusplus
 extern "C"
 {

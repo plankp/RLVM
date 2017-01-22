@@ -599,6 +599,63 @@ exec_bytecode (rlvm_t * vm, const uint64_t len, opcode_t * ops)
 	    *ptr = vm->iregs[instr.svar.rt];
 	    break;
 	  }
+	case 38:		/* op: SCJMP rs: r# rt: r# immediate: flag */
+	  {
+	    /*
+	     * Float point related will have the 4th bit on.
+	     * < and > have 3rd bit for unsigned int comparisons
+	     */
+	    bool rst = false;
+	    switch (instr.svar.immediate & 7)
+	      {
+	      case 0:		/* equal */
+		rst =
+		  (instr.svar.immediate & 8) ? (vm->fregs[instr.svar.rs] ==
+						vm->fregs[instr.svar.
+							  rt]) : (vm->
+								  iregs[instr.
+									svar.
+									rs] ==
+								  vm->
+								  iregs[instr.
+									svar.
+									rt]);
+		break;
+	      case 1:		/* lesser than */
+		if (instr.svar.immediate & 8)
+		  rst = vm->fregs[instr.svar.rs] < vm->fregs[instr.svar.rt];
+		else if (instr.svar.immediate & 4)
+		  rst =
+		    ((int64_t) vm->iregs[instr.svar.rs]) <
+		    ((int64_t) vm->iregs[instr.svar.rt]);
+		else
+		  rst = vm->iregs[instr.svar.rs] < vm->iregs[instr.svar.rt];
+		break;
+	      case 2:		/* greater than */
+		if (instr.svar.immediate & 8)
+		  rst = vm->fregs[instr.svar.rs] > vm->fregs[instr.svar.rt];
+		else if (instr.svar.immediate & 4)
+		  rst =
+		    ((int64_t) vm->iregs[instr.svar.rs]) >
+		    ((int64_t) vm->iregs[instr.svar.rt]);
+		else
+		  rst = vm->iregs[instr.svar.rs] > vm->iregs[instr.svar.rt];
+		break;
+	      case 3:		/* zero */
+		rst =
+		  (instr.svar.immediate & 8) ? (vm->fregs[instr.svar.rs] ==
+						0) : (vm->iregs[instr.svar.
+								rs] == 0);
+		break;
+	      }
+	    /*
+	     * If rst is true, the next line is executed.
+	     * The next line is skipped otherwise.
+	     */
+	    if (!rst)
+	      vm->ip += 1;
+	    break;
+	  }
 	default:
 	  VM_THROW (vm, BAD_OPCODE, instr.bytes, on_fault);
 	}

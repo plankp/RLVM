@@ -32,6 +32,10 @@
 #include <stdlib.h>
 #include <inttypes.h>
 
+#ifndef __cplusplus
+#include <stdbool.h>
+#endif /* !__cplusplus */
+
 /**
  * This is only used inside of the VM. On fault (or
  * exception), the stack unwinds until it reaches
