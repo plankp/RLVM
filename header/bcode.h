@@ -25,8 +25,9 @@
 #ifndef __BCODE_H__
 #define __BCODE_H__
 
-/* Feature test macros (or something like that) */
+#ifndef _DEFAULT_SOURCE
 #define _DEFAULT_SOURCE
+#endif /* !_DEFAULT_SOURCE */
 
 #include "rlvm.h"
 

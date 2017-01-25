@@ -611,15 +611,9 @@ exec_bytecode (rlvm_t * vm, const uint64_t len, opcode_t * ops)
 	      case 0:		/* equal */
 		rst =
 		  (instr.svar.immediate & 8) ? (vm->fregs[instr.svar.rs] ==
-						vm->fregs[instr.svar.
-							  rt]) : (vm->
-								  iregs[instr.
-									svar.
-									rs] ==
-								  vm->
-								  iregs[instr.
-									svar.
-									rt]);
+						vm->fregs[instr.
+							  svar.rt])
+		  : (vm->iregs[instr.svar.rs] == vm->iregs[instr.svar.rt]);
 		break;
 	      case 1:		/* lesser than */
 		if (instr.svar.immediate & 8)
@@ -644,8 +638,9 @@ exec_bytecode (rlvm_t * vm, const uint64_t len, opcode_t * ops)
 	      case 3:		/* zero */
 		rst =
 		  (instr.svar.immediate & 8) ? (vm->fregs[instr.svar.rs] ==
-						0) : (vm->iregs[instr.svar.
-								rs] == 0);
+						0) : (vm->iregs[instr.
+								svar.rs] ==
+						      0);
 		break;
 	      }
 	    /*
