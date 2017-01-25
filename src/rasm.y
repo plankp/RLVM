@@ -40,7 +40,7 @@ extern "C"
 %}
 
 %token COLON COMMA
-%token K_HALT
+%token K_HALT K_MOV K_MH32 K_ML32 K_ML16 K_ML8 K_SWP K_I2F K_B2F K_F2IF K_F2B K_F2IC K_RMEH K_THROW K_PUSH K_POP
 
 %union
 {
@@ -61,33 +61,88 @@ prog:
 stmt:
     defLabel
     | visInstr	{
-  ++addr;
-  if (pass != 0)
-    {
-      push (&ibuf, opc);
+      ++addr;
+      if (pass != 0)
+	push (&ibuf, opc);
     }
-}
     ;
 
 defLabel:
     LABEL COLON	{
-  /* Only do something in pass 0 */
-  /* Store this inside a hashmap. Done this before! */
-  if (pass == 0)
-    {
-      if (has_key (&lmap, $1))
-        {
-          yyerror ("Label redefined!");
-        }
-      put_entry (&lmap, $1, addr);
+      /* Only do something in pass 0 */
+      if (pass == 0)
+	{
+	  if (has_key (&lmap, $1))
+	    yyerror ("Label redefined!");
+	  put_entry (&lmap, $1, addr);
+	}
     }
-}
     ;
 
 visInstr:
     K_HALT IREG {
-  opc = RLVM_HALT ($2);
-}
+      opc = RLVM_HALT ($2);
+    }
+    | K_MOV IREG COMMA IREG {
+      opc = RLVM_IRMV64 ($2, $4);
+    }
+    | K_MH32 IREG COMMA IREG {
+      opc = RLVM_IRMVH32 ($2, $4);
+    }
+    | K_ML32 IREG COMMA IREG {
+      opc = RLVM_IRMVL32 ($2, $4);
+    }
+    | K_ML16 IREG COMMA IREG {
+      opc = RLVM_IRMVL16 ($2, $4);
+    }
+    | K_ML8 IREG COMMA IREG {
+      opc = RLVM_IRMVL8 ($2, $4);
+    }
+    | K_MOV FREG COMMA FREG {
+      opc = RLVM_FRMV ($2, $4);
+    }
+    | K_SWP IREG COMMA IREG {
+      opc = RLVM_IRSWP ($2, $4);
+    }
+    | K_I2F FREG COMMA IREG {
+      opc = RLVM_IRTFR ($2, $4, 0);
+    }
+    | K_B2F FREG COMMA IREG {
+      opc = RLVM_IRTFR ($2, $4, 1);
+    }
+    | K_F2IF IREG COMMA FREG {
+      opc = RLVM_FRTIR ($2, $4, 0);
+    }
+    | K_F2B IREG COMMA FREG {
+      opc = RLVM_FRTIR ($2, $4, 1);
+    }
+    | K_F2IC IREG COMMA FREG {
+      opc = RLVM_FRTIR ($2, $4, 2);
+    }
+    | K_RMEH {
+      opc = RLVM_RMEH ();
+    }
+    | K_THROW IREG {
+      opc = RLVM_THROW ($2);
+    }
+    | K_PUSH IREG {
+      opc = RLVM_PUSH1 ($2);
+    }
+    | K_PUSH IREG COMMA IREG {
+      opc = RLVM_PUSH2 ($2, $4);
+    }
+    | K_PUSH IREG COMMA IREG COMMA IREG {
+      opc = RLVM_PUSH3 ($2, $4, $6);
+    }
+    | K_POP IREG {
+      opc = RLVM_POP1 ($2);
+    }
+    | K_POP IREG COMMA IREG {
+      opc = RLVM_POP2 ($2, $4);
+    }
+    | K_POP IREG COMMA IREG COMMA IREG {
+      opc = RLVM_POP3 ($2, $4, $6);
+    }
     ;
 
 %%
