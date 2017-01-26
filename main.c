@@ -25,109 +25,123 @@
 #include "rlvm.h"
 #include "bcode.h"
 
+#include <ctype.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <unistd.h>
+
+#ifdef __cplusplus
 #include <stdbool.h>
 
-void
-print_binary (int num, size_t width)
+extern "C"
 {
-  while (width > 0)
-    {
-      width -= 1;
-      putc ((num & 1) + '0', stdout);
-      num >>= 1;
-    }
+#endif /* !__cplusplus */
+
+  /* This is from bison */
+  extern bcode_t assemble (FILE *f);
+
+#ifdef __cplusplus
 }
-
-int
-gcd_demo (void)
-{
-  rlvm_t vm = init_rlvm (0, 0);
-
-  /*
-   * Calculate the gcd of 48 and 180
-   * 0   ldi r0, 48
-   * 1   ldi r1, 180
-   * 2   jz r1, 6
-   * 3   mod r0, r0, r1
-   * 4   swpi r0, r1
-   * 5   jof -3
-   * 6   hlt r0              # r0 already contains the result
-   */
-  opcode_t ins[] = {
-    {
-     .svar = (op_svar_t) {
-			  .opcode = 3,.rs = 0,.rt = 0,.immediate = 48}
-     },
-    {
-     .svar = (op_svar_t) {
-			  .opcode = 3,.rs = 1,.rt = 0,.immediate = 180}
-     },
-    {
-     .svar = (op_svar_t) {
-			  .opcode = 25,.rs = 1,.rt = 0,.immediate = 6}
-     },
-    {
-     .fvar = (op_fvar_t) {
-			  .opcode = 1,.rs = 0,.rt = 1,.rd = 0,.sa = 0,.fn = 4}
-     },
-    {
-     .fvar = (op_fvar_t) {
-			  .opcode = 0,.rs = 0,.rd = 1,.rt = 0,.sa = 0,.fn = 3}
-     },
-    {
-     .tvar = (op_tvar_t) {
-			  .opcode = 23,.target = -3}
-     },
-    {
-     .bytes = 0}
-  };
-
-  /* This only works because ins is a *legit* array (as opposed to a pointer) */
-  const size_t length = sizeof (ins) / sizeof (ins[0]);
-  printf ("Executing bytes:\n");
-  size_t i;
-  for (i = 0; i < length; ++i)
-    {
-      print_binary (ins[i].bytes, 32);
-      printf ("\n");
-    }
-
-  status_t retval = exec_bytecode (&vm, length, ins);
-  if (retval.state != CLEAN)
-    printf ("VM EXITED WITH NON-ZERO VALUE! (%d: %d)\n", retval.state,
-	    retval.uid);
-
-  print_rlvm_state (&vm);
-  clean_rlvm (&vm);
-  return 0;
-}
+#endif /* !__cplusplus */
 
 int
 main (int argc, char **argv)
 {
-  if (argc != 2)
-    return 1;
+  bool compile = false;
+  bool run = false;
+  char *inf = NULL;
+  char *outf = NULL;
 
-  FILE *f = fopen (argv[1], "rb");
-  bcode_t tmp;
-  if (read_bytecode (f, &tmp) == NULL)
+  opterr = 0;
+
+  int c;
+  while ((c = getopt (argc, argv, "cro:h")) != -1)
+    switch (c)
+      {
+      case 'c':
+	compile = true;
+	break;
+      case 'r':
+	run = true;
+	break;
+      case 'o':
+	outf = optarg;
+	break;
+      case 'h':
+	printf ("Usage: rlvm [options] file\n"
+		"Options:\n"
+		"  -c    Compile assembly file\n"
+		"  -r    Executes a bytecode (or assembly file if -c is used)\n"
+		"  -o    Output file (only used with -c)\n"
+		"  -h    Displays help\n"
+		"\n"
+		"For bug reporting, go to\n"
+		"<https://github.com/plankp/rlvm>.");
+        return 1;
+      default:
+	abort ();
+      }
+  inf = argv[optind];
+
+  bcode_t code;
+  if (compile)
     {
-      fprintf (stderr, "Failed interpreting bytecode\n");
-      return 2;
+      /*
+       * Compile to buffer first. If outf
+       * is NULL, that means we do not save
+       * the compiled binary.
+       */
+      FILE *f = fopen (inf, "r");
+      if (f == NULL)
+	{
+	  fprintf (stderr, "Failed to read file %s\n", inf);
+	  return 2;
+	}
+      code = assemble (f);
+      fclose (f);
+
+      if (outf != NULL)
+	{
+	  f = fopen (outf, "wb");
+	  if (f == NULL)
+	    {
+	      fprintf (stderr, "Failed to open file %s\n", outf);
+	      return 2;
+	    }
+	  if (!write_bytecode (f, &code))
+	    {
+	      fprintf (stderr, "Failed to write file %s\n", outf);
+	      return 2;
+	    }
+	  fflush (f);
+	  fclose (f);
+	}
     }
-  fclose (f);
 
-  rlvm_t vm;
-  status_t retval = exec_bcode_t (&vm, &tmp);
-  if (retval.state != CLEAN)
-    printf ("VM EXITED WITH NON-ZERO VALUE! (%d: %d)\n", retval.state,
-	    retval.uid);
+  if (run)
+    {
+      if (!compile)
+	{
+	  /* Read and initalize $code */
+	  FILE *f = fopen (inf, "rb");
+	  if (read_bytecode (f, &code) == NULL)
+	    {
+	      fprintf (stderr, "Failed interpreting bytecode from %s\n", inf);
+	      return 3;
+	    }
+	  fclose (f);
+	}
 
-  print_rlvm_state (&vm);
-  clean_rlvm (&vm);
-  clean_bcode (&tmp);
+      rlvm_t vm;
+      status_t retval = exec_bcode_t (&vm, &code);
+      if (retval.state != CLEAN)
+	printf ("VM EXITED WITH NON-ZERO VALUE! (%d: %d)\n", retval.state,
+		retval.uid);
+
+      print_rlvm_state (&vm);
+      clean_rlvm (&vm);
+      clean_bcode (&code);
+    }
   return 0;
 }
