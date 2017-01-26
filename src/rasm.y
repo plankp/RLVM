@@ -40,7 +40,7 @@ extern "C"
 %}
 
 %token COLON COMMA
-%token K_HALT K_MOV K_MH32 K_ML32 K_ML16 K_ML8 K_SWP K_I2F K_B2F K_F2IF K_F2B K_F2IC K_RMEH K_THROW K_PUSH K_POP K_LDEX K_PLDEX K_ADD K_SUB K_MUL K_DIV K_MOD K_AND K_OR K_XOR K_NOT K_LSH K_RSH K_SRSH K_ROL K_ROR K_CALL K_JMP K_RET K_JE K_JL K_JG K_JLS K_JGS K_JOF K_JZ
+%token K_HALT K_MOV K_MH32 K_ML32 K_ML16 K_ML8 K_SWP K_I2F K_B2F K_F2IF K_F2B K_F2IC K_RMEH K_THROW K_PUSH K_POP K_LDEX K_PLDEX K_ADD K_SUB K_MUL K_DIV K_MOD K_AND K_OR K_XOR K_NOT K_LSH K_RSH K_SRSH K_ROL K_ROR K_CALL K_JMP K_RET K_JE K_JL K_JG K_JLS K_JGS K_JOF K_JZ K_INEH K_LDS K_STS K_STFBS K_ALLOC K_FREE K_LDB K_LDW K_LDD K_LDQ K_STB K_STW K_STD K_STQ K_SJE K_SJL K_SJSL K_SJG K_SJSG K_SJZ
 
 %union
 {
@@ -475,6 +475,92 @@ visInstr:
       if (!has_key (&lmap, $4))
 	yyerror ("Undefined label");
       opc = RLVM_JFRZ ($2, get_val (&lmap, $4));
+    }
+    | K_INEH INT {
+      opc = RLVM_INEH ($2);
+    }
+    | K_INEH LABEL {
+      if (!has_key (&lmap, $2))
+	yyerror ("Undefined label");
+      opc = RLVM_INEH (get_val (&lmap, $2));
+    }
+    | K_LDS IREG COMMA INT {
+      opc = RLVM_IRLD ($2, $4);
+    }
+    | K_LDS FREG COMMA INT {
+      opc = RLVM_FRLD ($2, $4);
+    }
+    | K_STS IREG COMMA INT {
+      opc = RLVM_IRST ($2, $4);
+    }
+    | K_STS FREG COMMA INT {
+      opc = RLVM_FRST ($2, $4);
+    }
+    | K_STFBS FREG COMMA INT {
+      opc = RLVM_FBST ($2, $4);
+    }
+    | K_ALLOC IREG COMMA INT {
+      opc = RLVM_ALLOCI ($2, $4);
+    }
+    | K_ALLOC IREG COMMA IREG {
+      opc = RLVM_IRALLOC ($2, $4);
+    }
+    | K_FREE IREG {
+      opc = RLVM_FREE ($2);
+    }
+    | K_LDB IREG COMMA IREG COMMA INT {
+      opc = RLVM_LDB ($2, $4, $6);
+    }
+    | K_LDW IREG COMMA IREG COMMA INT {
+      opc = RLVM_LDW ($2, $4, $6);
+    }
+    | K_LDD IREG COMMA IREG COMMA INT {
+      opc = RLVM_LDD ($2, $4, $6);
+    }
+    | K_LDQ IREG COMMA IREG COMMA INT {
+      opc = RLVM_LDQ ($2, $4, $6);
+    }
+    | K_STB IREG COMMA IREG COMMA INT {
+      opc = RLVM_STB ($2, $4, $6);
+    }
+    | K_STW IREG COMMA IREG COMMA INT {
+      opc = RLVM_STW ($2, $4, $6);
+    }
+    | K_STD IREG COMMA IREG COMMA INT {
+      opc = RLVM_STD ($2, $4, $6);
+    }
+    | K_STQ IREG COMMA IREG COMMA INT {
+      opc = RLVM_STQ ($2, $4, $6);
+    }
+    | K_SJE IREG COMMA IREG {
+      opc = RLVM_SIREQ ($2, $4);
+    }
+    | K_SJE FREG COMMA FREG {
+      opc = RLVM_SFREQ ($2, $4);
+    }
+    | K_SJL IREG COMMA IREG {
+      opc = RLVM_SIRL ($2, $4);
+    }
+    | K_SJL FREG COMMA FREG {
+      opc = RLVM_SFRL ($2, $4);
+    }
+    | K_SJSL IREG COMMA IREG {
+      opc = RLVM_SIRSL ($2, $4);
+    }
+    | K_SJG IREG COMMA IREG {
+      opc = RLVM_SIRG ($2, $4);
+    }
+    | K_SJG FREG COMMA FREG {
+      opc = RLVM_SFRG ($2, $4);
+    }
+    | K_SJSG IREG COMMA IREG {
+      opc = RLVM_SIRSG ($2, $4);
+    }
+    | K_SJZ IREG {
+      opc = RLVM_SIRZ ($2);
+    }
+    | K_SJZ FREG {
+      opc = RLVM_SFRZ ($2);
     }
     ;
 
