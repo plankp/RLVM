@@ -86,6 +86,21 @@ cell_relloc:
   return true;
 }
 
+uint64_t
+get_val (lblmap_t * map, char *key)
+{
+  lblmap_ent_t **cell = map->ptr + (__djb2_hash (key) % map->bucket_size);
+cell_relloc:
+  if (*cell == NULL)
+    return 0;
+  if (strcmp ((*cell)->key, key) != 0)
+    {
+      cell = &(*cell)->next;
+      goto cell_relloc;
+    }
+  return (*cell)->val;
+}
+
 static inline void
 __free_entry (lblmap_ent_t * ent)
 {

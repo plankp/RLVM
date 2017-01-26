@@ -57,6 +57,8 @@ extern "C"
 
   extern bool has_key (lblmap_t * map, char *key);
 
+  extern uint64_t get_val (lblmap_t * map, char *key);
+
   extern void free_map (lblmap_t * map);
 
 #ifdef __cplusplus

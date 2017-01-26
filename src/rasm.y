@@ -40,7 +40,7 @@ extern "C"
 %}
 
 %token COLON COMMA
-%token K_HALT K_MOV K_MH32 K_ML32 K_ML16 K_ML8 K_SWP K_I2F K_B2F K_F2IF K_F2B K_F2IC K_RMEH K_THROW K_PUSH K_POP
+%token K_HALT K_MOV K_MH32 K_ML32 K_ML16 K_ML8 K_SWP K_I2F K_B2F K_F2IF K_F2B K_F2IC K_RMEH K_THROW K_PUSH K_POP K_LDEX K_PLDEX K_ADD K_SUB K_MUL K_DIV K_MOD K_AND K_OR K_XOR K_NOT K_LSH K_RSH K_SRSH K_ROL K_ROR K_CALL K_JMP K_RET K_JE K_JL K_JG K_JLS K_JGS K_JOF K_JZ
 
 %union
 {
@@ -142,6 +142,339 @@ visInstr:
     }
     | K_POP IREG COMMA IREG COMMA IREG {
       opc = RLVM_POP3 ($2, $4, $6);
+    }
+    | K_LDEX {
+      opc = RLVM_LDEX (0, 1);
+    }
+    | K_LDEX IREG {
+      opc = RLVM_LDEX ($2, 0);
+    }
+    | K_PLDEX IREG {
+      opc = RLVM_LDEX ($2, 2);
+    }
+    | K_ADD IREG COMMA IREG COMMA IREG {
+      opc = RLVM_ADD ($2, $4, $6, 0, 0);
+    }
+    | K_ADD IREG COMMA IREG COMMA IREG COMMA K_LSH INT {
+      opc = RLVM_ADD ($2, $4, $6, 1, $9);
+    }
+    | K_ADD IREG COMMA IREG COMMA IREG COMMA K_RSH INT {
+      opc = RLVM_ADD ($2, $4, $6, 2, $9);
+    }
+    | K_ADD IREG COMMA IREG COMMA IREG COMMA K_SRSH INT {
+      opc = RLVM_ADD ($2, $4, $6, 3, $9);
+    }
+    | K_SUB IREG COMMA IREG COMMA IREG {
+      opc = RLVM_SUB ($2, $4, $6, 0, 0);
+    }
+    | K_SUB IREG COMMA IREG COMMA IREG COMMA K_LSH INT {
+      opc = RLVM_SUB ($2, $4, $6, 1, $9);
+    }
+    | K_SUB IREG COMMA IREG COMMA IREG COMMA K_RSH INT {
+      opc = RLVM_SUB ($2, $4, $6, 2, $9);
+    }
+    | K_SUB IREG COMMA IREG COMMA IREG COMMA K_SRSH INT {
+      opc = RLVM_SUB ($2, $4, $6, 3, $9);
+    }
+    | K_MUL IREG COMMA IREG COMMA IREG {
+      opc = RLVM_MUL ($2, $4, $6, 0, 0);
+    }
+    | K_MUL IREG COMMA IREG COMMA IREG COMMA K_LSH INT {
+      opc = RLVM_MUL ($2, $4, $6, 1, $9);
+    }
+    | K_MUL IREG COMMA IREG COMMA IREG COMMA K_RSH INT {
+      opc = RLVM_MUL ($2, $4, $6, 2, $9);
+    }
+    | K_MUL IREG COMMA IREG COMMA IREG COMMA K_SRSH INT {
+      opc = RLVM_MUL ($2, $4, $6, 3, $9);
+    }
+    | K_DIV IREG COMMA IREG COMMA IREG {
+      opc = RLVM_DIV ($2, $4, $6, 0, 0);
+    }
+    | K_DIV IREG COMMA IREG COMMA IREG COMMA K_LSH INT {
+      opc = RLVM_DIV ($2, $4, $6, 1, $9);
+    }
+    | K_DIV IREG COMMA IREG COMMA IREG COMMA K_RSH INT {
+      opc = RLVM_DIV ($2, $4, $6, 2, $9);
+    }
+    | K_DIV IREG COMMA IREG COMMA IREG COMMA K_SRSH INT {
+      opc = RLVM_DIV ($2, $4, $6, 3, $9);
+    }
+    | K_MOD IREG COMMA IREG COMMA IREG {
+      opc = RLVM_MOD ($2, $4, $6, 0, 0);
+    }
+    | K_MOD IREG COMMA IREG COMMA IREG COMMA K_LSH INT {
+      opc = RLVM_MOD ($2, $4, $6, 1, $9);
+    }
+    | K_MOD IREG COMMA IREG COMMA IREG COMMA K_RSH INT {
+      opc = RLVM_MOD ($2, $4, $6, 2, $9);
+    }
+    | K_MOD IREG COMMA IREG COMMA IREG COMMA K_SRSH INT {
+      opc = RLVM_MOD ($2, $4, $6, 3, $9);
+    }
+    | K_AND IREG COMMA IREG COMMA IREG {
+      opc = RLVM_AND ($2, $4, $6, 0, 0);
+    }
+    | K_AND IREG COMMA IREG COMMA IREG COMMA K_LSH INT {
+      opc = RLVM_AND ($2, $4, $6, 1, $9);
+    }
+    | K_AND IREG COMMA IREG COMMA IREG COMMA K_RSH INT {
+      opc = RLVM_AND ($2, $4, $6, 2, $9);
+    }
+    | K_AND IREG COMMA IREG COMMA IREG COMMA K_SRSH INT {
+      opc = RLVM_AND ($2, $4, $6, 3, $9);
+    }
+    | K_OR IREG COMMA IREG COMMA IREG {
+      opc = RLVM_OR ($2, $4, $6, 0, 0);
+    }
+    | K_OR IREG COMMA IREG COMMA IREG COMMA K_LSH INT {
+      opc = RLVM_OR ($2, $4, $6, 1, $9);
+    }
+    | K_OR IREG COMMA IREG COMMA IREG COMMA K_RSH INT {
+      opc = RLVM_OR ($2, $4, $6, 2, $9);
+    }
+    | K_OR IREG COMMA IREG COMMA IREG COMMA K_SRSH INT {
+      opc = RLVM_OR ($2, $4, $6, 3, $9);
+    }
+    | K_XOR IREG COMMA IREG COMMA IREG {
+      opc = RLVM_XOR ($2, $4, $6, 0, 0);
+    }
+    | K_XOR IREG COMMA IREG COMMA IREG COMMA K_LSH INT {
+      opc = RLVM_XOR ($2, $4, $6, 1, $9);
+    }
+    | K_XOR IREG COMMA IREG COMMA IREG COMMA K_RSH INT {
+      opc = RLVM_XOR ($2, $4, $6, 2, $9);
+    }
+    | K_XOR IREG COMMA IREG COMMA IREG COMMA K_SRSH INT {
+      opc = RLVM_XOR ($2, $4, $6, 3, $9);
+    }
+    | K_NOT IREG COMMA IREG {
+      opc = RLVM_NOT ($2, $4, 0, 0);
+    }
+    | K_NOT IREG COMMA IREG COMMA K_LSH INT {
+      opc = RLVM_NOT ($2, $4, 1, $7);
+    }
+    | K_NOT IREG COMMA IREG COMMA K_RSH INT {
+      opc = RLVM_NOT ($2, $4, 2, $7);
+    }
+    | K_NOT IREG COMMA IREG COMMA K_SRSH INT {
+      opc = RLVM_NOT ($2, $4, 3, $7);
+    }
+    | K_LSH IREG COMMA IREG COMMA IREG {
+      opc = RLVM_LSH ($2, $4, $6, 0, 0);
+    }
+    | K_LSH IREG COMMA IREG COMMA IREG COMMA K_LSH INT {
+      opc = RLVM_LSH ($2, $4, $6, 1, $9);
+    }
+    | K_LSH IREG COMMA IREG COMMA IREG COMMA K_RSH INT {
+      opc = RLVM_LSH ($2, $4, $6, 2, $9);
+    }
+    | K_LSH IREG COMMA IREG COMMA IREG COMMA K_SRSH INT {
+      opc = RLVM_LSH ($2, $4, $6, 3, $9);
+    }
+    | K_RSH IREG COMMA IREG COMMA IREG {
+      opc = RLVM_RSH ($2, $4, $6, 0, 0);
+    }
+    | K_RSH IREG COMMA IREG COMMA IREG COMMA K_LSH INT {
+      opc = RLVM_RSH ($2, $4, $6, 1, $9);
+    }
+    | K_RSH IREG COMMA IREG COMMA IREG COMMA K_RSH INT {
+      opc = RLVM_RSH ($2, $4, $6, 2, $9);
+    }
+    | K_RSH IREG COMMA IREG COMMA IREG COMMA K_SRSH INT {
+      opc = RLVM_RSH ($2, $4, $6, 3, $9);
+    }
+    | K_SRSH IREG COMMA IREG COMMA IREG {
+      opc = RLVM_SRSH ($2, $4, $6, 0, 0);
+    }
+    | K_SRSH IREG COMMA IREG COMMA IREG COMMA K_LSH INT {
+      opc = RLVM_SRSH ($2, $4, $6, 1, $9);
+    }
+    | K_SRSH IREG COMMA IREG COMMA IREG COMMA K_RSH INT {
+      opc = RLVM_SRSH ($2, $4, $6, 2, $9);
+    }
+    | K_SRSH IREG COMMA IREG COMMA IREG COMMA K_SRSH INT {
+      opc = RLVM_SRSH ($2, $4, $6, 3, $9);
+    }
+    | K_ROL IREG COMMA IREG COMMA IREG {
+      opc = RLVM_ROL ($2, $4, $6, 0, 0);
+    }
+    | K_ROL IREG COMMA IREG COMMA IREG COMMA K_LSH INT {
+      opc = RLVM_ROL ($2, $4, $6, 1, $9);
+    }
+    | K_ROL IREG COMMA IREG COMMA IREG COMMA K_RSH INT {
+      opc = RLVM_ROL ($2, $4, $6, 2, $9);
+    }
+    | K_ROL IREG COMMA IREG COMMA IREG COMMA K_SRSH INT {
+      opc = RLVM_ROL ($2, $4, $6, 3, $9);
+    }
+    | K_ROR IREG COMMA IREG COMMA IREG {
+      opc = RLVM_ROR ($2, $4, $6, 0, 0);
+    }
+    | K_ROR IREG COMMA IREG COMMA IREG COMMA K_LSH INT {
+      opc = RLVM_ROR ($2, $4, $6, 1, $9);
+    }
+    | K_ROR IREG COMMA IREG COMMA IREG COMMA K_RSH INT {
+      opc = RLVM_ROR ($2, $4, $6, 2, $9);
+    }
+    | K_ROR IREG COMMA IREG COMMA IREG COMMA K_SRSH INT {
+      opc = RLVM_ROR ($2, $4, $6, 3, $9);
+    }
+    | K_ADD FREG COMMA FREG COMMA FREG {
+      opc = RLVM_ADDF ($2, $4, $6);
+    }
+    | K_SUB FREG COMMA FREG COMMA FREG {
+      opc = RLVM_SUBF ($2, $4, $6);
+    }
+    | K_MUL FREG COMMA FREG COMMA FREG {
+      opc = RLVM_MULF ($2, $4, $6);
+    }
+    | K_DIV FREG COMMA FREG COMMA FREG {
+      opc = RLVM_DIVF ($2, $4, $6);
+    }
+    | K_MOD FREG COMMA FREG COMMA FREG {
+      opc = RLVM_MODF ($2, $4, $6);
+    }
+    | K_MOV IREG COMMA INT {
+      opc = RLVM_IRLDI ($2, 0, $4);
+    }
+    | K_MOV IREG COMMA INT COMMA K_LSH INT {
+      opc = RLVM_IRLDI ($2, $7, $4);
+    }
+    | K_ADD IREG COMMA IREG COMMA INT {
+      opc = RLVM_ADDI ($2, $4, $6);
+    }
+    | K_SUB IREG COMMA IREG COMMA INT {
+      opc = RLVM_SUBI ($2, $4, $6);
+    }
+    | K_MUL IREG COMMA IREG COMMA INT {
+      opc = RLVM_MULI ($2, $4, $6);
+    }
+    | K_DIV IREG COMMA IREG COMMA INT {
+      opc = RLVM_DIVI ($2, $4, $6);
+    }
+    | K_MOD IREG COMMA IREG COMMA INT {
+      opc = RLVM_MODI ($2, $4, $6);
+    }
+    | K_AND IREG COMMA IREG COMMA INT {
+      opc = RLVM_ANDI ($2, $4, $6);
+    }
+    | K_OR IREG COMMA IREG COMMA INT {
+      opc = RLVM_ORI ($2, $4, $6);
+    }
+    | K_XOR IREG COMMA IREG COMMA INT {
+      opc = RLVM_XORI ($2, $4, $6);
+    }
+    | K_CALL INT {
+      opc = RLVM_CALL ($2);
+    }
+    | K_CALL LABEL {
+      if (!has_key (&lmap, $2))
+	yyerror ("Undefined label");
+      opc = RLVM_CALL (get_val (&lmap, $2));
+    }
+    | K_JMP INT {
+      opc = RLVM_JMP ($2);
+    }
+    | K_JMP LABEL {
+      if (!has_key (&lmap, $2))
+	yyerror ("Undefined label");
+      opc = RLVM_JMP (get_val (&lmap, $2));
+    }
+    | K_RET {
+      opc = RLVM_RET ();
+    }
+    | K_JE IREG COMMA IREG COMMA INT {
+      opc = RLVM_JE ($2, $4, $6);
+    }
+    | K_JE IREG COMMA IREG COMMA LABEL {
+      if (!has_key (&lmap, $6))
+	yyerror ("Undefined label");
+      opc = RLVM_JE ($2, $4, get_val (&lmap, $6));
+    }
+    | K_JL IREG COMMA IREG COMMA INT {
+      opc = RLVM_JL ($2, $4, $6);
+    }
+    | K_JL IREG COMMA IREG COMMA LABEL {
+      if (!has_key (&lmap, $6))
+	yyerror ("Undefined label");
+      opc = RLVM_JL ($2, $4, get_val (&lmap, $6));
+    }
+    | K_JG IREG COMMA IREG COMMA INT {
+      opc = RLVM_JG ($2, $4, $6);
+    }
+    | K_JG IREG COMMA IREG COMMA LABEL {
+      if (!has_key (&lmap, $6))
+	yyerror ("Undefined label");
+      opc = RLVM_JG ($2, $4, get_val (&lmap, $6));
+    }
+    | K_JLS IREG COMMA IREG COMMA INT {
+      opc = RLVM_JLS ($2, $4, $6);
+    }
+    | K_JLS IREG COMMA IREG COMMA LABEL {
+      if (!has_key (&lmap, $6))
+	yyerror ("Undefined label");
+      opc = RLVM_JLS ($2, $4, get_val (&lmap, $6));
+    }
+    | K_JGS IREG COMMA IREG COMMA INT {
+      opc = RLVM_JGS ($2, $4, $6);
+    }
+    | K_JGS IREG COMMA IREG COMMA LABEL {
+      if (!has_key (&lmap, $6))
+	yyerror ("Undefined label");
+      opc = RLVM_JGS ($2, $4, get_val (&lmap, $6));
+    }
+    | K_JE FREG COMMA FREG COMMA INT {
+      opc = RLVM_JFE ($2, $4, $6);
+    }
+    | K_JE FREG COMMA FREG COMMA LABEL {
+      if (!has_key (&lmap, $6))
+	yyerror ("Undefined label");
+      opc = RLVM_JFE ($2, $4, get_val (&lmap, $6));
+    }
+    | K_JL FREG COMMA FREG COMMA INT {
+      opc = RLVM_JFL ($2, $4, $6);
+    }
+    | K_JL FREG COMMA FREG COMMA LABEL {
+      if (!has_key (&lmap, $6))
+	yyerror ("Undefined label");
+      opc = RLVM_JFL ($2, $4, get_val (&lmap, $6));
+    }
+    | K_JG FREG COMMA FREG COMMA INT {
+      opc = RLVM_JFG ($2, $4, $6);
+    }
+    | K_JG FREG COMMA FREG COMMA LABEL {
+      if (!has_key (&lmap, $6))
+	yyerror ("Undefined label");
+      opc = RLVM_JFG ($2, $4, get_val (&lmap, $6));
+    }
+    | K_JOF INT {
+      opc = RLVM_JOF ($2);
+    }
+    | K_JMP IREG {
+      opc = RLVM_JIR ($2, 0, 0);
+    }
+    | K_JMP IREG COMMA K_LSH INT {
+      opc = RLVM_JIR ($2, $5, 0);
+    }
+    | K_JMP IREG COMMA K_LSH INT COMMA INT {
+      opc = RLVM_JIR ($2, $5, $7);
+    }
+    | K_JZ IREG COMMA INT {
+      opc = RLVM_JIRZ ($2, $4);
+    }
+    | K_JZ IREG COMMA LABEL {
+      if (!has_key (&lmap, $4))
+	yyerror ("Undefined label");
+      opc = RLVM_JIRZ ($2, get_val (&lmap, $4));
+    }
+    | K_JZ FREG COMMA INT {
+      opc = RLVM_JFRZ ($2, $4);
+    }
+    | K_JZ FREG COMMA LABEL {
+      if (!has_key (&lmap, $4))
+	yyerror ("Undefined label");
+      opc = RLVM_JFRZ ($2, get_val (&lmap, $4));
     }
     ;
 
