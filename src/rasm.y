@@ -28,6 +28,10 @@ extern "C"
 
   extern uint64_t addr;
 
+  extern uint64_t stack_size;
+
+  extern uint64_t estack_size;
+
   extern lblmap_t lmap;
 
   extern instrbuf_t ibuf;
@@ -40,7 +44,7 @@ extern "C"
 %}
 
 %token COLON COMMA
-%token K_HALT K_MOV K_MH32 K_ML32 K_ML16 K_ML8 K_SWP K_I2F K_B2F K_F2IF K_F2B K_F2IC K_RMEH K_THROW K_PUSH K_POP K_LDEX K_PLDEX K_ADD K_SUB K_MUL K_DIV K_MOD K_AND K_OR K_XOR K_NOT K_LSH K_RSH K_SRSH K_ROL K_ROR K_CALL K_JMP K_RET K_JE K_JL K_JG K_JLS K_JGS K_JOF K_JZ K_INEH K_LDS K_STS K_STFBS K_ALLOC K_FREE K_LDB K_LDW K_LDD K_LDQ K_STB K_STW K_STD K_STQ K_SJE K_SJL K_SJSL K_SJG K_SJSG K_SJZ
+%token D_STACK D_ESTACK K_HALT K_MOV K_MH32 K_ML32 K_ML16 K_ML8 K_SWP K_I2F K_B2F K_F2IF K_F2B K_F2IC K_RMEH K_THROW K_PUSH K_POP K_LDEX K_PLDEX K_ADD K_SUB K_MUL K_DIV K_MOD K_AND K_OR K_XOR K_NOT K_LSH K_RSH K_SRSH K_ROL K_ROR K_CALL K_JMP K_RET K_JE K_JL K_JG K_JLS K_JGS K_JOF K_JZ K_INEH K_LDS K_STS K_STFBS K_ALLOC K_FREE K_LDB K_LDW K_LDD K_LDQ K_STB K_STW K_STD K_STQ K_SJE K_SJL K_SJSL K_SJG K_SJSG K_SJZ
 
 %union
 {
@@ -60,7 +64,9 @@ prog:
 
 stmt:
     defLabel
-    | visInstr	{
+    | visDirectives {
+    }
+    | visInstr {
       ++addr;
       if (pass != 0)
 	push (&ibuf, opc);
@@ -76,6 +82,15 @@ defLabel:
 	    yyerror ("Label redefined!");
 	  put_entry (&lmap, $1, addr);
 	}
+    }
+    ;
+
+visDirectives:
+    D_STACK INT {
+      stack_size = $2;
+    }
+    | D_ESTACK INT {
+      estack_size = $2;
     }
     ;
 
@@ -369,17 +384,23 @@ visInstr:
       opc = RLVM_CALL ($2);
     }
     | K_CALL LABEL {
-      if (!has_key (&lmap, $2))
-	yyerror ("Undefined label");
-      opc = RLVM_CALL (get_val (&lmap, $2));
+      if (pass != 0)
+	{
+	  if (!has_key (&lmap, $2))
+	    yyerror ("Undefined label");
+	  opc = RLVM_CALL (get_val (&lmap, $2));
+	}
     }
     | K_JMP INT {
       opc = RLVM_JMP ($2);
     }
     | K_JMP LABEL {
-      if (!has_key (&lmap, $2))
-	yyerror ("Undefined label");
-      opc = RLVM_JMP (get_val (&lmap, $2));
+      if (pass != 0)
+	{
+	  if (!has_key (&lmap, $2))
+	    yyerror ("Undefined label");
+	  opc = RLVM_JMP (get_val (&lmap, $2));
+	}
     }
     | K_RET {
       opc = RLVM_RET ();
@@ -388,65 +409,89 @@ visInstr:
       opc = RLVM_JE ($2, $4, $6);
     }
     | K_JE IREG COMMA IREG COMMA LABEL {
-      if (!has_key (&lmap, $6))
-	yyerror ("Undefined label");
-      opc = RLVM_JE ($2, $4, get_val (&lmap, $6));
+      if (pass != 0)
+	{
+	  if (!has_key (&lmap, $6))
+	    yyerror ("Undefined label");
+	  opc = RLVM_JE ($2, $4, get_val (&lmap, $6));
+	}
     }
     | K_JL IREG COMMA IREG COMMA INT {
       opc = RLVM_JL ($2, $4, $6);
     }
     | K_JL IREG COMMA IREG COMMA LABEL {
-      if (!has_key (&lmap, $6))
-	yyerror ("Undefined label");
-      opc = RLVM_JL ($2, $4, get_val (&lmap, $6));
+      if (pass != 0)
+	{
+	  if (!has_key (&lmap, $6))
+	    yyerror ("Undefined label");
+	  opc = RLVM_JL ($2, $4, get_val (&lmap, $6));
+	}
     }
     | K_JG IREG COMMA IREG COMMA INT {
       opc = RLVM_JG ($2, $4, $6);
     }
     | K_JG IREG COMMA IREG COMMA LABEL {
-      if (!has_key (&lmap, $6))
-	yyerror ("Undefined label");
-      opc = RLVM_JG ($2, $4, get_val (&lmap, $6));
+      if (pass != 0)
+	{
+	  if (!has_key (&lmap, $6))
+	    yyerror ("Undefined label");
+	  opc = RLVM_JG ($2, $4, get_val (&lmap, $6));
+	}
     }
     | K_JLS IREG COMMA IREG COMMA INT {
       opc = RLVM_JLS ($2, $4, $6);
     }
     | K_JLS IREG COMMA IREG COMMA LABEL {
-      if (!has_key (&lmap, $6))
-	yyerror ("Undefined label");
-      opc = RLVM_JLS ($2, $4, get_val (&lmap, $6));
+      if (pass != 0)
+	{
+	  if (!has_key (&lmap, $6))
+	    yyerror ("Undefined label");
+	  opc = RLVM_JLS ($2, $4, get_val (&lmap, $6));
+	}
     }
     | K_JGS IREG COMMA IREG COMMA INT {
       opc = RLVM_JGS ($2, $4, $6);
     }
     | K_JGS IREG COMMA IREG COMMA LABEL {
-      if (!has_key (&lmap, $6))
-	yyerror ("Undefined label");
-      opc = RLVM_JGS ($2, $4, get_val (&lmap, $6));
+      if (pass != 0)
+	{
+	  if (!has_key (&lmap, $6))
+	    yyerror ("Undefined label");
+	  opc = RLVM_JGS ($2, $4, get_val (&lmap, $6));
+	}
     }
     | K_JE FREG COMMA FREG COMMA INT {
       opc = RLVM_JFE ($2, $4, $6);
     }
     | K_JE FREG COMMA FREG COMMA LABEL {
-      if (!has_key (&lmap, $6))
-	yyerror ("Undefined label");
-      opc = RLVM_JFE ($2, $4, get_val (&lmap, $6));
+      if (pass != 0)
+	{
+	  if (!has_key (&lmap, $6))
+	    yyerror ("Undefined label");
+	  opc = RLVM_JFE ($2, $4, get_val (&lmap, $6));
+	}
     }
     | K_JL FREG COMMA FREG COMMA INT {
       opc = RLVM_JFL ($2, $4, $6);
     }
     | K_JL FREG COMMA FREG COMMA LABEL {
-      if (!has_key (&lmap, $6))
-	yyerror ("Undefined label");
-      opc = RLVM_JFL ($2, $4, get_val (&lmap, $6));
+      if (pass != 0)
+	{
+	  if (!has_key (&lmap, $6))
+	    yyerror ("Undefined label");
+	  opc = RLVM_JFL ($2, $4, get_val (&lmap, $6));
+	}
     }
     | K_JG FREG COMMA FREG COMMA INT {
       opc = RLVM_JFG ($2, $4, $6);
     }
     | K_JG FREG COMMA FREG COMMA LABEL {
-      if (!has_key (&lmap, $6))
-	yyerror ("Undefined label");
-      opc = RLVM_JFG ($2, $4, get_val (&lmap, $6));
+      if (pass != 0)
+	{
+	  if (!has_key (&lmap, $6))
+	    yyerror ("Undefined label");
+	  opc = RLVM_JFG ($2, $4, get_val (&lmap, $6));
+	}
     }
     | K_JOF INT {
       opc = RLVM_JOF ($2);
@@ -464,25 +509,34 @@ visInstr:
       opc = RLVM_JIRZ ($2, $4);
     }
     | K_JZ IREG COMMA LABEL {
-      if (!has_key (&lmap, $4))
-	yyerror ("Undefined label");
-      opc = RLVM_JIRZ ($2, get_val (&lmap, $4));
+      if (pass != 0)
+	{
+	  if (!has_key (&lmap, $4))
+	    yyerror ("Undefined label");
+	  opc = RLVM_JIRZ ($2, get_val (&lmap, $4));
+	}
     }
     | K_JZ FREG COMMA INT {
       opc = RLVM_JFRZ ($2, $4);
     }
     | K_JZ FREG COMMA LABEL {
-      if (!has_key (&lmap, $4))
-	yyerror ("Undefined label");
-      opc = RLVM_JFRZ ($2, get_val (&lmap, $4));
+      if (pass != 0)
+	{
+	  if (!has_key (&lmap, $4))
+	    yyerror ("Undefined label");
+	  opc = RLVM_JFRZ ($2, get_val (&lmap, $4));
+	}
     }
     | K_INEH INT {
       opc = RLVM_INEH ($2);
     }
     | K_INEH LABEL {
-      if (!has_key (&lmap, $2))
-	yyerror ("Undefined label");
-      opc = RLVM_INEH (get_val (&lmap, $2));
+      if (pass != 0)
+	{
+	  if (!has_key (&lmap, $2))
+	    yyerror ("Undefined label");
+	  opc = RLVM_INEH (get_val (&lmap, $2));
+	}
     }
     | K_LDS IREG COMMA INT {
       opc = RLVM_IRLD ($2, $4);
@@ -569,6 +623,8 @@ visInstr:
 /* No assignment. Only allocate memory */
 size_t pass;
 uint64_t addr;
+uint64_t stack_size;
+uint64_t estack_size;
 lblmap_t lmap;
 instrbuf_t ibuf;
 opcode_t opc;
@@ -587,7 +643,7 @@ is_big_endian (void)
 bcode_t
 assemble (FILE *in)
 {
-  pass = addr = 0;
+  pass = stack_size = estack_size = addr = 0;
   lmap = init_map (64);
   ibuf = init_buf (16);
   yyin = in;
@@ -611,8 +667,8 @@ assemble (FILE *in)
     .magic = {
       0x2C, is_big_endian () ? 0xDF : 0xD0
     },
-    .cstack_size = 10, // TODO: THIS
-    .estack_size = 10, // TODO: THIS
+    .cstack_size = stack_size,
+    .estack_size = estack_size,
     .code_size = ibuf.size,
     .code = calloc (sizeof (opcode_t), ibuf.size)
   };

@@ -35,6 +35,8 @@ extern "C"
   yylval.ival = atoi (yytext + 1);
   return IREG;
 				}
+\.(STACK)|(stack)		return D_STACK;	
+\.(ESTACK)|(estack)		return D_ESTACK;
 HALT|halt			return K_HALT;
 MOV|mov				return K_MOV;
 MH32|mh32			return K_MH32;
@@ -97,7 +99,7 @@ SJSL|sjsl			return K_SJSL;
 SJG|sjg				return K_SJG;
 SJSG|sjsg			return K_SJSG;
 SJZ|sjz				return K_SJZ;
--?0|[1-9][0-9]*			{
+-?(0|[1-9][0-9]*)	       	{
   yylval.ival = atoi (yytext);
   return INT;
 				}

@@ -114,6 +114,7 @@ main (int argc, char **argv)
 	      fprintf (stderr, "Failed to write file %s\n", outf);
 	      return 2;
 	    }
+	  fflush (f);
 	  fclose (f);
 	}
     }

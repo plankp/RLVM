@@ -24,6 +24,14 @@ To assemble rlvm assembly and then run it directly, enter this command
 rlvm -cr your/file.asm
 ```
 
+To assemble rlvm assembly and then save it, enter this command
+
+```
+rlvm -c -o output/name.bin your/file.asm
+```
+
+Note: `your/file.asm` has to be the at the end
+
 To get help, type
 
 ```
