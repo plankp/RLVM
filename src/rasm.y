@@ -7,6 +7,15 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#ifndef __cplusplus
+#include <stdbool.h>
+#endif /* !__cplusplus */
+
+typedef enum section_t
+{
+  TEXT = 0, DATA
+} section_t;
+
 #ifdef __cplusplus
 extern "C"
 {
@@ -28,9 +37,13 @@ extern "C"
 
   extern uint64_t addr;
 
+  extern uint64_t roaddr;
+
   extern uint64_t stack_size;
 
   extern uint64_t estack_size;
+
+  extern FILE *ropool;
 
   extern lblmap_t lmap;
 
@@ -38,34 +51,69 @@ extern "C"
 
   extern opcode_t opc;
 
+  extern section_t section;
+
 #ifdef __cplusplus
 }
 #endif /* !__cplusplus */
 %}
 
 %token COLON COMMA
-%token D_STACK D_ESTACK K_HALT K_MOV K_MH32 K_ML32 K_ML16 K_ML8 K_SWP K_I2F K_B2F K_F2IF K_F2B K_F2IC K_RMEH K_THROW K_PUSH K_POP K_LDEX K_PLDEX K_ADD K_SUB K_MUL K_DIV K_MOD K_AND K_OR K_XOR K_NOT K_LSH K_RSH K_SRSH K_ROL K_ROR K_CALL K_JMP K_RET K_JE K_JL K_JG K_JLS K_JGS K_JOF K_JZ K_INEH K_LDS K_STS K_STFBS K_ALLOC K_FREE K_LDB K_LDW K_LDD K_LDQ K_STB K_STW K_STD K_STQ K_SJE K_SJL K_SJSL K_SJG K_SJSG K_SJZ
+%token D_GLOBAL D_SECTION D_STACK D_ESTACK S_TEXT S_DATA K_HALT K_MOV K_MH32 K_ML32 K_ML16 K_ML8 K_SWP K_I2F K_B2F K_F2IF K_F2B K_F2IC K_RMEH K_THROW K_PUSH K_POP K_LDEX K_PLDEX K_ADD K_SUB K_MUL K_DIV K_MOD K_AND K_OR K_XOR K_NOT K_LSH K_RSH K_SRSH K_ROL K_ROR K_CALL K_JMP K_RET K_JE K_JL K_JG K_JLS K_JGS K_JOF K_JZ K_INEH K_LDS K_STS K_STFBS K_ALLOC K_FREE K_LDB K_LDW K_LDD K_LDQ K_STB K_STW K_STD K_STQ K_SJE K_SJL K_SJSL K_SJG K_SJSG K_SJZ K_LDC
 
 %union
 {
   int ival;
+  char cval;
   char *sval;
 }
 
 %token <sval> LABEL
 %token <ival> INT IREG FREG
+%token <cval> CHAR
 
 %%
 
 prog:
-    prog stmt
+    prog section
+    | section
+    ;
+
+section:
+    D_SECTION S_TEXT { section = TEXT; } code
+    | D_SECTION S_DATA { section = DATA; } data
+    | visDirectives
+    ;
+
+data:
+    data bytes
+    | bytes
+    ;
+
+bytes:
+    defLabel
+    | cbytes
+    ;
+
+cbytes:
+    cbytes COMMA CHAR {
+      ++roaddr;
+      putc ($3, ropool);
+    }
+    | CHAR {
+      ++roaddr;
+      putc ($1, ropool);
+    }
+    ;
+
+code:
+    code stmt
     | stmt
     ;
 
 stmt:
     defLabel
-    | visDirectives {
-    }
+    | visDirectives
     | visInstr {
       ++addr;
       if (pass != 0)
@@ -80,13 +128,29 @@ defLabel:
 	{
 	  if (has_key (&lmap, $1))
 	    yyerror ("Label redefined!");
-	  put_entry (&lmap, $1, addr);
+	  switch (section)
+	    {
+	    case TEXT:
+	      put_entry (&lmap, $1, addr);
+	      break;
+	    case DATA:
+	      put_entry (&lmap, $1, roaddr);
+	      break;
+	    }
 	}
     }
     ;
 
 visDirectives:
-    D_STACK INT {
+    D_GLOBAL LABEL {
+      if (pass != 0)
+	{
+	  if (!has_key (&lmap, $2))
+	    yyerror ("Attempt to export undefined label");
+	  set_global_flag (&lmap, $2, true);
+	}
+    }
+    | D_STACK INT {
       stack_size = $2;
     }
     | D_ESTACK INT {
@@ -388,6 +452,9 @@ visInstr:
 	{
 	  if (!has_key (&lmap, $2))
 	    yyerror ("Undefined label");
+	  if (get_data_flag (&lmap, $2))
+	    fprintf (stderr, "Warning: Using data label (at line %d)\n",
+		     line_num);
 	  opc = RLVM_CALL (get_val (&lmap, $2));
 	}
     }
@@ -399,6 +466,9 @@ visInstr:
 	{
 	  if (!has_key (&lmap, $2))
 	    yyerror ("Undefined label");
+	  if (get_data_flag (&lmap, $2))
+	    fprintf (stderr, "Warning: Using data label (at line %d)\n",
+		     line_num);
 	  opc = RLVM_JMP (get_val (&lmap, $2));
 	}
     }
@@ -413,6 +483,9 @@ visInstr:
 	{
 	  if (!has_key (&lmap, $6))
 	    yyerror ("Undefined label");
+	  if (get_data_flag (&lmap, $6))
+	    fprintf (stderr, "Warning: Using data label (at line %d)\n",
+		     line_num);
 	  opc = RLVM_JE ($2, $4, get_val (&lmap, $6));
 	}
     }
@@ -424,6 +497,9 @@ visInstr:
 	{
 	  if (!has_key (&lmap, $6))
 	    yyerror ("Undefined label");
+	  if (get_data_flag (&lmap, $6))
+	    fprintf (stderr, "Warning: Using data label (at line %d)\n",
+		     line_num);
 	  opc = RLVM_JL ($2, $4, get_val (&lmap, $6));
 	}
     }
@@ -435,6 +511,9 @@ visInstr:
 	{
 	  if (!has_key (&lmap, $6))
 	    yyerror ("Undefined label");
+	  if (get_data_flag (&lmap, $6))
+	    fprintf (stderr, "Warning: Using data label (at line %d)\n",
+		     line_num);
 	  opc = RLVM_JG ($2, $4, get_val (&lmap, $6));
 	}
     }
@@ -446,6 +525,9 @@ visInstr:
 	{
 	  if (!has_key (&lmap, $6))
 	    yyerror ("Undefined label");
+	  if (get_data_flag (&lmap, $6))
+	    fprintf (stderr, "Warning: Using data label (at line %d)\n",
+		     line_num);
 	  opc = RLVM_JLS ($2, $4, get_val (&lmap, $6));
 	}
     }
@@ -457,6 +539,9 @@ visInstr:
 	{
 	  if (!has_key (&lmap, $6))
 	    yyerror ("Undefined label");
+	  if (get_data_flag (&lmap, $6))
+	    fprintf (stderr, "Warning: Using data label (at line %d)\n",
+		     line_num);
 	  opc = RLVM_JGS ($2, $4, get_val (&lmap, $6));
 	}
     }
@@ -468,6 +553,9 @@ visInstr:
 	{
 	  if (!has_key (&lmap, $6))
 	    yyerror ("Undefined label");
+	  if (get_data_flag (&lmap, $6))
+	    fprintf (stderr, "Warning: Using data label (at line %d)\n",
+		     line_num);
 	  opc = RLVM_JFE ($2, $4, get_val (&lmap, $6));
 	}
     }
@@ -479,6 +567,9 @@ visInstr:
 	{
 	  if (!has_key (&lmap, $6))
 	    yyerror ("Undefined label");
+	  if (get_data_flag (&lmap, $6))
+	    fprintf (stderr, "Warning: Using data label (at line %d)\n",
+		     line_num);
 	  opc = RLVM_JFL ($2, $4, get_val (&lmap, $6));
 	}
     }
@@ -490,6 +581,9 @@ visInstr:
 	{
 	  if (!has_key (&lmap, $6))
 	    yyerror ("Undefined label");
+	  if (get_data_flag (&lmap, $6))
+	    fprintf (stderr, "Warning: Using data label (at line %d)\n",
+		     line_num);
 	  opc = RLVM_JFG ($2, $4, get_val (&lmap, $6));
 	}
     }
@@ -513,6 +607,9 @@ visInstr:
 	{
 	  if (!has_key (&lmap, $4))
 	    yyerror ("Undefined label");
+	  if (get_data_flag (&lmap, $4))
+	    fprintf (stderr, "Warning: Using data label (at line %d)\n",
+		     line_num);
 	  opc = RLVM_JIRZ ($2, get_val (&lmap, $4));
 	}
     }
@@ -524,6 +621,9 @@ visInstr:
 	{
 	  if (!has_key (&lmap, $4))
 	    yyerror ("Undefined label");
+	  if (get_data_flag (&lmap, $4))
+	    fprintf (stderr, "Warning: Using data label (at line %d)\n",
+		     line_num);
 	  opc = RLVM_JFRZ ($2, get_val (&lmap, $4));
 	}
     }
@@ -535,6 +635,9 @@ visInstr:
 	{
 	  if (!has_key (&lmap, $2))
 	    yyerror ("Undefined label");
+	  if (get_data_flag (&lmap, $2))
+	    fprintf (stderr, "Warning: Using data label (at line %d)\n",
+		     line_num);
 	  opc = RLVM_INEH (get_val (&lmap, $2));
 	}
     }
@@ -616,6 +719,34 @@ visInstr:
     | K_SJZ FREG {
       opc = RLVM_SFRZ ($2);
     }
+    | K_LDC IREG COMMA IREG COMMA LABEL {
+      if (pass != 0)
+	{
+	  if (!has_key (&lmap, $6))
+	    yyerror ("Undefined label");
+	  if (!get_data_flag (&lmap, $6))
+	    fprintf (stderr, "Warning: Using non-data label (at line %d)\n",
+		     line_num);
+	  opc = RLVM_LDPO ($2, $4, get_val (&lmap, $6));
+	}
+    }
+    | K_LDC IREG COMMA IREG COMMA INT {
+      opc = RLVM_LDPO ($2, $4, $6);
+    }
+    | K_LDC IREG COMMA LABEL {
+      if (pass != 0)
+	{
+	  if (!has_key (&lmap, $4))
+	    yyerror ("Undefined label");
+	  if (!get_data_flag (&lmap, $4))
+	    fprintf (stderr, "Warning: Using non-data label (at line %d)\n",
+		     line_num);
+	  opc = RLVM_LDPA ($2, get_val (&lmap, $4));
+	}
+    }
+    | K_LDC IREG COMMA INT {
+      opc = RLVM_LDPA ($2, $4);
+    }
     ;
 
 %%
@@ -623,11 +754,14 @@ visInstr:
 /* No assignment. Only allocate memory */
 size_t pass;
 uint64_t addr;
+uint64_t roaddr;
 uint64_t stack_size;
 uint64_t estack_size;
+FILE *ropool;
 lblmap_t lmap;
 instrbuf_t ibuf;
 opcode_t opc;
+section_t section;
 
 static inline
 int
@@ -643,10 +777,15 @@ is_big_endian (void)
 bcode_t
 assemble (FILE *in)
 {
-  pass = stack_size = estack_size = addr = 0;
+  pass = stack_size = estack_size = roaddr = addr = 0;
+  section = TEXT;
   lmap = init_map (64);
   ibuf = init_buf (16);
   yyin = in;
+
+  char *ropool_dat;
+  size_t ropool_len;
+  ropool = open_memstream (&ropool_dat, &ropool_len);
 
   do
     {
@@ -655,13 +794,16 @@ assemble (FILE *in)
   while (!feof (yyin));
 
   rewind (yyin);
-  ++pass, addr = 0;
-  
+  ++pass, roaddr = addr = 0;
+
   do
     {
       yyparse ();
     }
   while (!feof (yyin));
+
+  fflush (ropool);
+  fclose (ropool);
 
   bcode_t obj = (bcode_t) {
     .magic = {
@@ -669,8 +811,10 @@ assemble (FILE *in)
     },
     .cstack_size = stack_size,
     .estack_size = estack_size,
+    .ropool_size = ropool_len,
     .code_size = ibuf.size,
-    .code = calloc (sizeof (opcode_t), ibuf.size)
+    .code = calloc (sizeof (opcode_t), ibuf.size),
+    .ropool = ropool_dat		/* DO NOT FREE ropool_dat! */
   };
   memcpy (obj.code, ibuf.ptr, ibuf.size * sizeof (opcode_t));
 

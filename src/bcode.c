@@ -56,6 +56,13 @@ read_bytecode (FILE * f, bcode_t * bf)
   else
     bf->estack_size = le64toh (bf->estack_size);
 
+  if (fread (&bf->ropool_size, sizeof (bf->ropool_size), 1, f) != 1)
+    return NULL;
+  if (bf->magic[1] == 0xDF)
+    bf->ropool_size = be64toh (bf->ropool_size);
+  else
+    bf->ropool_size = le64toh (bf->ropool_size);
+
   if (fread (&bf->code_size, sizeof (bf->code_size), 1, f) != 1)
     return NULL;
   if (bf->magic[1] == 0xDF)
@@ -81,6 +88,10 @@ read_bytecode (FILE * f, bcode_t * bf)
 	  bf->code[i].bytes = le64toh (bf->code[i].bytes);
 	}
     }
+  bf->ropool = malloc (bf->ropool_size * sizeof (char));
+  if (fread (bf->ropool, sizeof (char), bf->ropool_size, f) !=
+      bf->ropool_size)
+    return NULL;
   return bf;
 }
 
@@ -106,9 +117,14 @@ write_bytecode (FILE * f, bcode_t * bf)
     return false;
   if (fwrite (&bf->estack_size, sizeof (uint64_t), 1, f) != 1)
     return false;
+  if (fwrite (&bf->ropool_size, sizeof (uint64_t), 1, f) != 1)
+    return false;
   if (fwrite (&bf->code_size, sizeof (uint64_t), 1, f) != 1)
     return false;
   if (fwrite (bf->code, sizeof (opcode_t), bf->code_size, f) != bf->code_size)
+    return false;
+  if (fwrite (bf->ropool, sizeof (char), bf->ropool_size, f) !=
+      bf->ropool_size)
     return false;
   return true;
 }
@@ -116,7 +132,7 @@ write_bytecode (FILE * f, bcode_t * bf)
 status_t
 exec_bcode_t (rlvm_t * vm, bcode_t * bf)
 {
-  rlvm_t lvm = init_rlvm (bf->cstack_size, bf->estack_size);
+  rlvm_t lvm = init_rlvm (bf->cstack_size, bf->estack_size, bf->ropool);
   memcpy (vm, &lvm, sizeof (rlvm_t));
   return exec_bytecode (vm, bf->code_size, bf->code);
 }
@@ -126,4 +142,6 @@ clean_bcode (bcode_t * bf)
 {
   free (bf->code);
   bf->code = NULL;
+  free (bf->ropool);
+  bf->ropool = NULL;
 }

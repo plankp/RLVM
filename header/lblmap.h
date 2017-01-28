@@ -37,6 +37,8 @@ typedef struct lblmap_ent_t
 {
   char *key;
   uint64_t val;
+  bool global_flag;
+  bool data_flag;
   struct lblmap_ent_t *next;
 } lblmap_ent_t;
 
@@ -56,6 +58,14 @@ extern "C"
   extern void put_entry (lblmap_t * map, char *key, uint64_t val);
 
   extern bool has_key (lblmap_t * map, char *key);
+
+  extern void set_global_flag (lblmap_t * map, char *key, bool flag);
+
+  extern void set_data_flag (lblmap_t * map, char *key, bool flag);
+
+  extern bool get_global_flag (lblmap_t * map, char *key);
+
+  extern bool get_data_flag (lblmap_t * map, char *key);
 
   extern uint64_t get_val (lblmap_t * map, char *key);
 

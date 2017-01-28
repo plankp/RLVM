@@ -35,8 +35,16 @@ extern "C"
   yylval.ival = atoi (yytext + 1);
   return IREG;
 				}
+0(x|X)[a-fA-F0-9]{2}		{
+  yylval.cval = strtol (yytext, NULL, 16);
+  return CHAR;
+				}
+\.(GLOBAL)|(global)		return D_GLOBAL;
+\.(SECTION)|(section)		return D_SECTION;
 \.(STACK)|(stack)		return D_STACK;	
 \.(ESTACK)|(estack)		return D_ESTACK;
+TEXT|text			return S_TEXT;
+DATA|data			return S_DATA;
 HALT|halt			return K_HALT;
 MOV|mov				return K_MOV;
 MH32|mh32			return K_MH32;
@@ -80,6 +88,7 @@ JG|jg				return K_JG;
 JOF|jof				return K_JOF;
 JZ|jz				return K_JZ;
 INEH|ineh			return K_INEH;
+LDC|ldc				return K_LDC;
 LDB|ldb				return K_LDB;
 LDW|ldw				return K_LDW;
 LDD|ldd				return K_LDD;

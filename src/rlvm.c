@@ -35,7 +35,7 @@ union fp_i_conv_t
 };
 
 rlvm_t
-init_rlvm (uint64_t stack_size, uint64_t handler_size)
+init_rlvm (uint64_t stack_size, uint64_t handler_size, char *pool)
 {
   return (rlvm_t)
   {
@@ -54,7 +54,9 @@ init_rlvm (uint64_t stack_size, uint64_t handler_size)
   .stack =
       stack_size == 0 ? NULL : calloc (stack_size,
 					   sizeof (uint64_t)),.estack =
-      handler_size == 0 ? NULL : calloc (handler_size, sizeof (ehandle_t))};
+      handler_size == 0 ? NULL : calloc (handler_size,
+					     sizeof (ehandle_t)),.ropool =
+      pool};
 }
 
 void
@@ -611,8 +613,7 @@ exec_bytecode (rlvm_t * vm, const uint64_t len, opcode_t * ops)
 	      case 0:		/* equal */
 		rst =
 		  (instr.svar.immediate & 8) ? (vm->fregs[instr.svar.rs] ==
-						vm->fregs[instr.
-							  svar.rt])
+						vm->fregs[instr.svar.rt])
 		  : (vm->iregs[instr.svar.rs] == vm->iregs[instr.svar.rt]);
 		break;
 	      case 1:		/* lesser than */
@@ -651,6 +652,15 @@ exec_bytecode (rlvm_t * vm, const uint64_t len, opcode_t * ops)
 	      vm->ip += 1;
 	    break;
 	  }
+	case 39:		/* op: LDPO rs: base rt: r# imm: signed offset */
+	  vm->iregs[instr.svar.rt] =
+	    (uint64_t) (vm->ropool + vm->iregs[instr.svar.rs] +
+			__pad_sign_bit (instr.svar.immediate, 16));
+	  break;
+	case 40:		/* op: LDPL rt: r# imm: loc */
+	  vm->iregs[instr.svar.rt] =
+	    (uint64_t) (vm->ropool + instr.svar.immediate);
+	  break;
 	default:
 	  VM_THROW (vm, BAD_OPCODE, instr.bytes, on_fault);
 	}

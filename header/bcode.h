@@ -52,8 +52,10 @@ typedef struct bcode_t
   uint8_t magic[2];
   uint64_t cstack_size;
   uint64_t estack_size;
+  uint64_t ropool_size;
   uint64_t code_size;
   opcode_t *code;
+  char *ropool;
 } bcode_t;
 
 /**
@@ -1211,6 +1213,32 @@ typedef struct bcode_t
       .rs = freg,				\
       .rt = 0,					\
       .immediate = 3 | 8			\
+    }						\
+  }
+
+/**
+ * Loads constant pool offset
+ */
+#define RLVM_LDPO(irDst, irBase, off)		\
+  (opcode_t) {					\
+    .svar = (op_svar_t) {			\
+      .opcode = 39,				\
+      .rs = irBase,				\
+      .rt = irDst,				\
+      .immediate = off				\
+    }						\
+  }
+
+/**
+ * Loads constant pool address
+ */
+#define RLVM_LDPA(irDst, off)			\
+  (opcode_t) {					\
+    .svar = (op_svar_t) {			\
+      .opcode = 40,				\
+      .rs = 0,					\
+      .rt = irDst,				\
+      .immediate = off				\
     }						\
   }
 
