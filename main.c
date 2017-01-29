@@ -36,14 +36,14 @@
 
 extern "C"
 {
-#endif /* !__cplusplus */
+#endif				/* !__cplusplus */
 
   /* This is from bison */
-  extern bcode_t assemble (FILE *f);
+  extern bcode_t assemble (FILE * f);
 
 #ifdef __cplusplus
 }
-#endif /* !__cplusplus */
+#endif				/* !__cplusplus */
 
 int
 main (int argc, char **argv)
@@ -78,7 +78,7 @@ main (int argc, char **argv)
 		"\n"
 		"For bug reporting, go to\n"
 		"<https://github.com/plankp/rlvm>.");
-        return 1;
+	return 1;
       default:
 	abort ();
       }
@@ -134,14 +134,10 @@ main (int argc, char **argv)
 	}
 
       rlvm_t vm;
-      status_t retval = exec_bcode_t (&vm, &code);
-      if (retval.state != CLEAN)
-	printf ("VM EXITED WITH NON-ZERO VALUE! (%d: %d)\n", retval.state,
-		retval.uid);
-
-      print_rlvm_state (&vm);
+      const status_t retval = exec_bcode_t (&vm, &code);
       clean_rlvm (&vm);
       clean_bcode (&code);
+      return retval.state;
     }
   return 0;
 }

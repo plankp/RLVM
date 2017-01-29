@@ -35,8 +35,19 @@ extern "C"
   yylval.ival = atoi (yytext + 1);
   return IREG;
 				}
+0(x|X)[a-fA-F0-9]{1,2}		{
+  yylval.cval = strtol (yytext, NULL, 16);
+  return CHAR;
+				}
+\.(GLOBAL)|(global)		return D_GLOBAL;
+\.(SECTION)|(section)		return D_SECTION;
 \.(STACK)|(stack)		return D_STACK;	
 \.(ESTACK)|(estack)		return D_ESTACK;
+TEXT|text			return S_TEXT;
+DATA|data			return S_DATA;
+STDOUT|stdout			return S_STDOUT;
+STDERR|stderr			return S_STDERR;
+STDIN|stdin			return S_STDIN;
 HALT|halt			return K_HALT;
 MOV|mov				return K_MOV;
 MH32|mh32			return K_MH32;
@@ -80,6 +91,7 @@ JG|jg				return K_JG;
 JOF|jof				return K_JOF;
 JZ|jz				return K_JZ;
 INEH|ineh			return K_INEH;
+LDC|ldc				return K_LDC;
 LDB|ldb				return K_LDB;
 LDW|ldw				return K_LDW;
 LDD|ldd				return K_LDD;
@@ -99,6 +111,14 @@ SJSL|sjsl			return K_SJSL;
 SJG|sjg				return K_SJG;
 SJSG|sjsg			return K_SJSG;
 SJZ|sjz				return K_SJZ;
+FOPEN|fopen			return K_FOPEN;
+FCLOSE|fclose			return K_FCLOSE;
+FFLUSH|fflush			return K_FFLUSH;
+FREWIND|frewind			return K_FREWIND;
+FREAD|fread			return K_FREAD;
+FWRTB|fwrtb			return K_FWRTB;
+FWRTQ|fwrtq			return K_FWRTQ;
+FWRTS|fwrts			return K_FWRTS;
 -?(0|[1-9][0-9]*)	       	{
   yylval.ival = atoi (yytext);
   return INT;

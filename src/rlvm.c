@@ -35,7 +35,7 @@ union fp_i_conv_t
 };
 
 rlvm_t
-init_rlvm (uint64_t stack_size, uint64_t handler_size)
+init_rlvm (uint64_t stack_size, uint64_t handler_size, char *pool)
 {
   return (rlvm_t)
   {
@@ -54,7 +54,9 @@ init_rlvm (uint64_t stack_size, uint64_t handler_size)
   .stack =
       stack_size == 0 ? NULL : calloc (stack_size,
 					   sizeof (uint64_t)),.estack =
-      handler_size == 0 ? NULL : calloc (handler_size, sizeof (ehandle_t))};
+      handler_size == 0 ? NULL : calloc (handler_size,
+					     sizeof (ehandle_t)),.ropool =
+      pool};
 }
 
 void
@@ -611,8 +613,7 @@ exec_bytecode (rlvm_t * vm, const uint64_t len, opcode_t * ops)
 	      case 0:		/* equal */
 		rst =
 		  (instr.svar.immediate & 8) ? (vm->fregs[instr.svar.rs] ==
-						vm->fregs[instr.
-							  svar.rt])
+						vm->fregs[instr.svar.rt])
 		  : (vm->iregs[instr.svar.rs] == vm->iregs[instr.svar.rt]);
 		break;
 	      case 1:		/* lesser than */
@@ -638,9 +639,8 @@ exec_bytecode (rlvm_t * vm, const uint64_t len, opcode_t * ops)
 	      case 3:		/* zero */
 		rst =
 		  (instr.svar.immediate & 8) ? (vm->fregs[instr.svar.rs] ==
-						0) : (vm->iregs[instr.
-								svar.rs] ==
-						      0);
+						0) : (vm->iregs[instr.svar.
+								rs] == 0);
 		break;
 	      }
 	    /*
@@ -651,6 +651,79 @@ exec_bytecode (rlvm_t * vm, const uint64_t len, opcode_t * ops)
 	      vm->ip += 1;
 	    break;
 	  }
+	case 39:		/* op: LDPO rs: base rt: r# imm: signed offset */
+	  vm->iregs[instr.svar.rt] =
+	    (uint64_t) (vm->ropool + vm->iregs[instr.svar.rs] +
+			__pad_sign_bit (instr.svar.immediate, 16));
+	  break;
+	case 40:		/* op: LDPL rt: r# imm: loc */
+	  vm->iregs[instr.svar.rt] =
+	    (uint64_t) (vm->ropool + instr.svar.immediate);
+	  break;
+	case 41:		/* op: DISKIO rt: r# rs: r# rd: r# fn: mode */
+	  switch (instr.fvar.fn)
+	    {
+	    case 0:		/* Read char */
+	      vm->iregs[instr.fvar.rd] =
+		fgetc ((FILE *) vm->iregs[instr.fvar.rs]);
+	      break;
+	    case 1:		/* Read int_10 */
+	      vm->iregs[instr.fvar.rt] =
+		fscanf ((FILE *) vm->iregs[instr.fvar.rs], "%" SCNd64 "",
+			&vm->iregs[instr.fvar.rd]);
+	      break;
+	    case 2:		/* Read float */
+	      vm->iregs[instr.fvar.rt] =
+		fscanf ((FILE *) vm->iregs[instr.fvar.rs], "%f",
+			&vm->fregs[instr.fvar.rd]);
+	      break;
+	    case 3:		/* Write char */
+	      vm->iregs[instr.fvar.rd] =
+		fputc (vm->iregs[instr.fvar.rt],
+		       (FILE *) vm->iregs[instr.fvar.rs]);
+	      break;
+	    case 4:		/* Write int_10 */
+	      vm->iregs[instr.fvar.rd] =
+		fprintf ((FILE *) vm->iregs[instr.fvar.rs], "%" PRId64 "",
+			 vm->iregs[instr.fvar.rt]);
+	      break;
+	    case 5:		/* Write float (%g) */
+	      vm->iregs[instr.fvar.rd] =
+		fprintf ((FILE *) vm->iregs[instr.fvar.rs], "%g",
+			 vm->fregs[instr.fvar.rt]);
+	      break;
+	    case 6:		/* Write null-terminated string */
+	      vm->iregs[instr.fvar.rd] =
+		fprintf ((FILE *) vm->iregs[instr.fvar.rs], "%s",
+			 (char *) vm->iregs[instr.fvar.rt]);
+	      break;
+	    case 7:		/* Gives rd stdout */
+	      vm->iregs[instr.fvar.rd] = (uint64_t) stdout;
+	      break;
+	    case 8:		/* Gives rd stderr */
+	      vm->iregs[instr.fvar.rd] = (uint64_t) stderr;
+	      break;
+	    case 9:		/* Gives rd stdin */
+	      vm->iregs[instr.fvar.rd] = (uint64_t) stdin;
+	      break;
+	    case 10:		/* Open file (rt points to string specifying mode) */
+	      vm->iregs[instr.fvar.rd] =
+		(uint64_t) fopen ((char *) vm->iregs[instr.fvar.rs],
+				  (char *) vm->iregs[instr.fvar.rt]);
+	      break;
+	    case 11:		/* Close file */
+	      vm->iregs[instr.fvar.rd] =
+		fclose ((FILE *) vm->iregs[instr.fvar.rs]);
+	      break;
+	    case 12:		/* Flush file */
+	      vm->iregs[instr.fvar.rd] =
+		fflush ((FILE *) vm->iregs[instr.fvar.rs]);
+	      break;
+	    case 13:		/* Rewind file */
+	      rewind ((FILE *) vm->iregs[instr.fvar.rs]);
+	      break;
+	    }
+	  break;
 	default:
 	  VM_THROW (vm, BAD_OPCODE, instr.bytes, on_fault);
 	}

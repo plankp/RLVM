@@ -135,6 +135,7 @@ typedef struct rlvm_t
   double fregs[ALLOC_REGS_COUNT];	/* Float point registers */
   uint64_t *stack;		/* Call stack */
   ehandle_t *estack;		/* Exception stack */
+  char *ropool;			/* Readonly pool */
 } rlvm_t;
 
 #ifdef __cplusplus
@@ -142,7 +143,8 @@ extern "C"
 {
 #endif				/* !__cplusplus */
 
-  extern rlvm_t init_rlvm (uint64_t stack_size, uint64_t handler_size);
+  extern rlvm_t init_rlvm (uint64_t stack_size, uint64_t handler_size,
+			   char *pool);
 
   extern void print_rlvm_state (rlvm_t * vm);
 

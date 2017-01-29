@@ -45,24 +45,34 @@ init_map (size_t _bucket_size)
       calloc (sizeof (lblmap_ent_t), _bucket_size)};
 }
 
+static inline lblmap_ent_t **
+__cell_find (lblmap_t * map, char *key)
+{
+  lblmap_ent_t **cell = map->ptr + (__djb2_hash (key) % map->bucket_size);
+cell_relloc:
+  if (*cell == NULL)
+    return cell;
+  if (strcmp ((*cell)->key, key) != 0)
+    {
+      cell = &(*cell)->next;
+      goto cell_relloc;
+    }
+  return cell;
+}
+
 void
 put_entry (lblmap_t * map, char *key, uint64_t val)
 {
-  lblmap_ent_t **cell = map->ptr + (__djb2_hash (key) % map->bucket_size);
-cell_relocation:
+  lblmap_ent_t **cell = __cell_find (map, key);
   if (*cell == NULL)
     {
       /* Insert here, cell was not occupied */
       *cell = calloc (sizeof (lblmap_ent_t), 1);
       (*cell)->key = key;
       (*cell)->val = val;
+      (*cell)->global_flag = false;
+      (*cell)->data_flag = false;
       (*cell)->next = NULL;
-    }
-  else if (strcmp ((*cell)->key, key) != 0)
-    {
-      /* Hash collision occurred, occupy (*cell)->next */
-      cell = &(*cell)->next;
-      goto cell_relocation;
     }
   else
     {
@@ -74,30 +84,52 @@ cell_relocation:
 bool
 has_key (lblmap_t * map, char *key)
 {
-  lblmap_ent_t **cell = map->ptr + (__djb2_hash (key) % map->bucket_size);
-cell_relloc:
+  lblmap_ent_t **cell = __cell_find (map, key);
   if (*cell == NULL)
     return false;
-  if (strcmp ((*cell)->key, key) != 0)
-    {
-      cell = &(*cell)->next;
-      goto cell_relloc;
-    }
   return true;
+}
+
+void
+set_global_flag (lblmap_t * map, char *key, bool flag)
+{
+  lblmap_ent_t **cell = __cell_find (map, key);
+  if (*cell != NULL)
+    (*cell)->global_flag = flag;
+}
+
+void
+set_data_flag (lblmap_t * map, char *key, bool flag)
+{
+  lblmap_ent_t **cell = __cell_find (map, key);
+  if (*cell != NULL)
+    (*cell)->data_flag = flag;
+}
+
+bool
+get_global_flag (lblmap_t * map, char *key)
+{
+  lblmap_ent_t **cell = __cell_find (map, key);
+  if (*cell != NULL)
+    return (*cell)->global_flag;
+  return false;
+}
+
+bool
+get_data_flag (lblmap_t * map, char *key)
+{
+  lblmap_ent_t **cell = __cell_find (map, key);
+  if (*cell != NULL)
+    return (*cell)->data_flag;
+  return false;
 }
 
 uint64_t
 get_val (lblmap_t * map, char *key)
 {
-  lblmap_ent_t **cell = map->ptr + (__djb2_hash (key) % map->bucket_size);
-cell_relloc:
+  lblmap_ent_t **cell = __cell_find (map, key);
   if (*cell == NULL)
     return 0;
-  if (strcmp ((*cell)->key, key) != 0)
-    {
-      cell = &(*cell)->next;
-      goto cell_relloc;
-    }
   return (*cell)->val;
 }
 
