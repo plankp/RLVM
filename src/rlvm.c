@@ -639,9 +639,8 @@ exec_bytecode (rlvm_t * vm, const uint64_t len, opcode_t * ops)
 	      case 3:		/* zero */
 		rst =
 		  (instr.svar.immediate & 8) ? (vm->fregs[instr.svar.rs] ==
-						0) : (vm->iregs[instr.
-								svar.rs] ==
-						      0);
+						0) : (vm->iregs[instr.svar.
+								rs] == 0);
 		break;
 	      }
 	    /*
@@ -660,6 +659,70 @@ exec_bytecode (rlvm_t * vm, const uint64_t len, opcode_t * ops)
 	case 40:		/* op: LDPL rt: r# imm: loc */
 	  vm->iregs[instr.svar.rt] =
 	    (uint64_t) (vm->ropool + instr.svar.immediate);
+	  break;
+	case 41:		/* op: DISKIO rt: r# rs: r# rd: r# fn: mode */
+	  switch (instr.fvar.fn)
+	    {
+	    case 0:		/* Read char */
+	      vm->iregs[instr.fvar.rd] =
+		fgetc ((FILE *) vm->iregs[instr.fvar.rs]);
+	      break;
+	    case 1:		/* Read int_10 */
+	      vm->iregs[instr.fvar.rt] =
+		fscanf ((FILE *) vm->iregs[instr.fvar.rs], "%" SCNd64 "",
+			&vm->iregs[instr.fvar.rd]);
+	      break;
+	    case 2:		/* Read float */
+	      vm->iregs[instr.fvar.rt] =
+		fscanf ((FILE *) vm->iregs[instr.fvar.rs], "%f",
+			&vm->fregs[instr.fvar.rd]);
+	      break;
+	    case 3:		/* Write char */
+	      vm->iregs[instr.fvar.rd] =
+		fputc (vm->iregs[instr.fvar.rt],
+		       (FILE *) vm->iregs[instr.fvar.rs]);
+	      break;
+	    case 4:		/* Write int_10 */
+	      vm->iregs[instr.fvar.rd] =
+		fprintf ((FILE *) vm->iregs[instr.fvar.rs], "%" PRId64 "",
+			 vm->iregs[instr.fvar.rt]);
+	      break;
+	    case 5:		/* Write float (%g) */
+	      vm->iregs[instr.fvar.rd] =
+		fprintf ((FILE *) vm->iregs[instr.fvar.rs], "%g",
+			 vm->fregs[instr.fvar.rt]);
+	      break;
+	    case 6:		/* Write null-terminated string */
+	      vm->iregs[instr.fvar.rd] =
+		fprintf ((FILE *) vm->iregs[instr.fvar.rs], "%s",
+			 (char *) vm->iregs[instr.fvar.rt]);
+	      break;
+	    case 7:		/* Gives rd stdout */
+	      vm->iregs[instr.fvar.rd] = (uint64_t) stdout;
+	      break;
+	    case 8:		/* Gives rd stderr */
+	      vm->iregs[instr.fvar.rd] = (uint64_t) stderr;
+	      break;
+	    case 9:		/* Gives rd stdin */
+	      vm->iregs[instr.fvar.rd] = (uint64_t) stdin;
+	      break;
+	    case 10:		/* Open file (rt points to string specifying mode) */
+	      vm->iregs[instr.fvar.rd] =
+		(uint64_t) fopen ((char *) vm->iregs[instr.fvar.rs],
+				  (char *) vm->iregs[instr.fvar.rt]);
+	      break;
+	    case 11:		/* Close file */
+	      vm->iregs[instr.fvar.rd] =
+		fclose ((FILE *) vm->iregs[instr.fvar.rs]);
+	      break;
+	    case 12:		/* Flush file */
+	      vm->iregs[instr.fvar.rd] =
+		fflush ((FILE *) vm->iregs[instr.fvar.rs]);
+	      break;
+	    case 13:		/* Rewind file */
+	      rewind ((FILE *) vm->iregs[instr.fvar.rs]);
+	      break;
+	    }
 	  break;
 	default:
 	  VM_THROW (vm, BAD_OPCODE, instr.bytes, on_fault);

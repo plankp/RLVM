@@ -1242,6 +1242,216 @@ typedef struct bcode_t
     }						\
   }
 
+/**
+ * Reads a char
+ */
+#define RLVM_FREAD_CH(irDst, irFile)		\
+  (opcode_t) {					\
+    .fvar = (op_fvar_t) {			\
+      .opcode = 41,				\
+      .rs = irFile,				\
+      .rt = 0,					\
+      .rd = irDst,				\
+      .sa = 0,					\
+      .fn = 0					\
+    }						\
+  }
+
+/**
+ * Reads a int64
+ */
+#define RLVM_FREAD_I64(irDst, irFile, irRet)	\
+  (opcode_t) {					\
+    .fvar = (op_fvar_t) {			\
+      .opcode = 41,				\
+      .rs = irFile,				\
+      .rt = irRet,				\
+      .rd = irDst,				\
+      .sa = 0,					\
+      .fn = 1					\
+    }						\
+  }
+
+/**
+ * Reads a float64
+ */
+#define RLVM_FREAD_F64(frDst, irFile, irRet)	\
+  (opcode_t) {					\
+    .fvar = (op_fvar_t) {			\
+      .opcode = 41,				\
+      .rs = irFile,				\
+      .rt = irRet,				\
+      .rd = frDst,				\
+      .sa = 0,					\
+      .fn = 2					\
+    }						\
+  }
+
+/**
+ * Writes a char
+ */
+#define RLVM_FWRITE_CH(irDst, irFile, irCh)	\
+  (opcode_t) {					\
+    .fvar = (op_fvar_t) {			\
+      .opcode = 41,				\
+      .rs = irFile,				\
+      .rt = irCh,				\
+      .rd = irDst,				\
+      .sa = 0,					\
+      .fn = 3					\
+    }						\
+  }
+
+/**
+ * Writes a int64
+ */
+#define RLVM_FWRITE_I64(irDst, irFile, irVal)	\
+  (opcode_t) {					\
+    .fvar = (op_fvar_t) {			\
+      .opcode = 41,				\
+      .rs = irFile,				\
+      .rt = irVal,				\
+      .rd = irDst,				\
+      .sa = 0,					\
+      .fn = 4					\
+    }						\
+  }
+
+/**
+ * Writes a float64
+ */
+#define RLVM_FWRITE_F64(irDst, irFile, frVal)	\
+  (opcode_t) {					\
+    .fvar = (op_fvar_t) {			\
+      .opcode = 41,				\
+      .rs = irFile,				\
+      .rt = frVal,				\
+      .rd = irDst,				\
+      .sa = 0,					\
+      .fn = 5					\
+    }						\
+  }
+
+/**
+ * Writes a null terminated string
+ */
+#define RLVM_FWRITE_STR(irDst, irFile, irPtr)	\
+  (opcode_t) {					\
+    .fvar = (op_fvar_t) {			\
+      .opcode = 41,				\
+      .rs = irFile,				\
+      .rt = irPtr,				\
+      .rd = irDst,				\
+      .sa = 0,					\
+      .fn = 6					\
+    }						\
+  }
+
+/**
+ * Loads address of stdout to int register
+ */
+#define RLVM_LD_STDOUT(irDst)			\
+  (opcode_t) {					\
+    .fvar = (op_fvar_t) {			\
+      .opcode = 41,				\
+      .rs = 0,					\
+      .rt = 0,					\
+      .rd = irDst,				\
+      .sa = 0,					\
+      .fn = 7					\
+    }						\
+  }
+
+/**
+ * Loads address of stderr to int register
+ */
+#define RLVM_LD_STDERR(irDst)			\
+  (opcode_t) {					\
+    .fvar = (op_fvar_t) {			\
+      .opcode = 41,				\
+      .rs = 0,					\
+      .rt = 0,					\
+      .rd = irDst,				\
+      .sa = 0,					\
+      .fn = 8					\
+    }						\
+  }
+
+/**
+ * Loads address of stdin to int register
+ */
+#define RLVM_LD_STDIN(irDst)			\
+  (opcode_t) {					\
+    .fvar = (op_fvar_t) {			\
+      .opcode = 41,				\
+      .rs = 0,					\
+      .rt = 0,					\
+      .rd = irDst,				\
+      .sa = 0,					\
+      .fn = 9					\
+    }						\
+  }
+
+/**
+ * Open a new file
+ */
+#define RLVM_FOPEN(irDst, irPath, irOMode)	\
+  (opcode_t) {					\
+    .fvar = (op_fvar_t) {			\
+      .opcode = 41,				\
+      .rs = irPath,				\
+      .rt = irOMode,				\
+      .rd = irDst,				\
+      .sa = 0,					\
+      .fn = 10					\
+    }						\
+  }
+
+/**
+ * Close a file
+ */
+#define RLVM_FCLOSE(irDst, irFile)		\
+  (opcode_t) {					\
+    .fvar = (op_fvar_t) {			\
+      .opcode = 41,				\
+      .rs = irFile,				\
+      .rt = 0,					\
+      .rd = irDst,				\
+      .sa = 0,					\
+      .fn = 11					\
+    }						\
+  }
+
+/**
+ * Flush a file
+ */
+#define RLVM_FFLUSH(irDst, irFile)		\
+  (opcode_t) {					\
+    .fvar = (op_fvar_t) {			\
+      .opcode = 41,				\
+      .rs = irFile,				\
+      .rt = 0,					\
+      .rd = irDst,				\
+      .sa = 0,					\
+      .fn = 12					\
+    }						\
+  }
+
+/**
+ * Rewind a file
+ */
+#define RLVM_FREWIND(irFile)			\
+  (opcode_t) {					\
+    .fvar = (op_fvar_t) {			\
+      .opcode = 41,				\
+      .rs = irFile,				\
+      .rt = 0,					\
+      .rd = 0,					\
+      .sa = 0,					\
+      .fn = 13					\
+    }						\
+  }
+
 #ifdef __cplusplus
 extern "C"
 {
