@@ -24,12 +24,12 @@
 
 #include "rlvm.h"
 #include "bcode.h"
+#include "getopt.h"
 
 #include <ctype.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <unistd.h>
 
 #ifndef __cplusplus
 #include <stdbool.h>
@@ -56,8 +56,6 @@ main (int argc, char **argv)
   char **inf = NULL;
   char *outf = NULL;
 
-  opterr = 0;
-
   int c;
   while ((c = getopt (argc, argv, "cro:h")) != -1)
     switch (c)
@@ -72,6 +70,7 @@ main (int argc, char **argv)
 	outf = optarg;
 	break;
       case 'h':
+      print_help_msg:
 	printf ("Usage: rlvm [options] file...\n"
 		"Options:\n"
 		"  -c    Compile assembly file\n"
@@ -83,7 +82,7 @@ main (int argc, char **argv)
 		"<https://github.com/plankp/rlvm>.");
 	return 1;
       default:
-	abort ();
+	goto print_help_msg;
       }
   inf = argv + optind;
   num_inf = argc - optind;
