@@ -61,7 +61,7 @@ cell_relloc:
 }
 
 void
-put_entry (lblmap_t * map, char *key, uint64_t val)
+put_entry (lblmap_t * map, char *key, uint64_t val, size_t tunit)
 {
   lblmap_ent_t **cell = __cell_find (map, key);
   if (*cell == NULL)
@@ -70,7 +70,7 @@ put_entry (lblmap_t * map, char *key, uint64_t val)
       *cell = calloc (sizeof (lblmap_ent_t), 1);
       (*cell)->key = key;
       (*cell)->val = val;
-      (*cell)->global_flag = false;
+      (*cell)->trans_unit = tunit;
       (*cell)->data_flag = false;
       (*cell)->next = NULL;
     }
@@ -79,6 +79,18 @@ put_entry (lblmap_t * map, char *key, uint64_t val)
       /* Overwrite since same key */
       (*cell)->val = val;
     }
+}
+
+bool
+put_if_empty (lblmap_t * map, lblmap_ent_t * ent)
+{
+  lblmap_ent_t **cell = __cell_find (map, ent->key);
+  if (*cell == NULL)
+    {
+      *cell = ent;
+      return true;
+    }
+  return false;
 }
 
 bool
@@ -91,14 +103,6 @@ has_key (lblmap_t * map, char *key)
 }
 
 void
-set_global_flag (lblmap_t * map, char *key, bool flag)
-{
-  lblmap_ent_t **cell = __cell_find (map, key);
-  if (*cell != NULL)
-    (*cell)->global_flag = flag;
-}
-
-void
 set_data_flag (lblmap_t * map, char *key, bool flag)
 {
   lblmap_ent_t **cell = __cell_find (map, key);
@@ -106,13 +110,13 @@ set_data_flag (lblmap_t * map, char *key, bool flag)
     (*cell)->data_flag = flag;
 }
 
-bool
-get_global_flag (lblmap_t * map, char *key)
+size_t
+get_trans_unit (lblmap_t * map, char *key)
 {
   lblmap_ent_t **cell = __cell_find (map, key);
   if (*cell != NULL)
-    return (*cell)->global_flag;
-  return false;
+    return (*cell)->trans_unit;
+  return 0;
 }
 
 bool
@@ -143,6 +147,24 @@ __free_entry (lblmap_ent_t * ent)
       free (ent->next);
       ent->next = NULL;
     }
+}
+
+lblmap_ent_t *
+remove_entry (lblmap_t * map, char *key)
+{
+  lblmap_ent_t **cell = map->ptr + (__djb2_hash (key) % map->bucket_size);
+cell_relloc:
+  if (*cell == NULL)
+    return NULL;
+  if (strcmp ((*cell)->key, key) != 0)
+    {
+      cell = &(*cell)->next;
+      goto cell_relloc;
+    }
+  lblmap_ent_t *old = *cell;
+  *cell = (*cell)->next;
+  old->next = NULL;
+  return old;
 }
 
 void

@@ -37,7 +37,7 @@ typedef struct lblmap_ent_t
 {
   char *key;
   uint64_t val;
-  bool global_flag;
+  size_t trans_unit;
   bool data_flag;
   struct lblmap_ent_t *next;
 } lblmap_ent_t;
@@ -55,19 +55,22 @@ extern "C"
 
   extern lblmap_t init_map (size_t bucket_size);
 
-  extern void put_entry (lblmap_t * map, char *key, uint64_t val);
+  extern void put_entry (lblmap_t * map, char *key, uint64_t val,
+			 size_t tunit);
+
+  extern bool put_if_empty (lblmap_t * map, lblmap_ent_t * ent);
 
   extern bool has_key (lblmap_t * map, char *key);
 
-  extern void set_global_flag (lblmap_t * map, char *key, bool flag);
-
   extern void set_data_flag (lblmap_t * map, char *key, bool flag);
 
-  extern bool get_global_flag (lblmap_t * map, char *key);
+  extern size_t get_trans_unit (lblmap_t * map, char *key);
 
   extern bool get_data_flag (lblmap_t * map, char *key);
 
   extern uint64_t get_val (lblmap_t * map, char *key);
+
+  extern lblmap_ent_t *remove_entry (lblmap_t * map, char *key);
 
   extern void free_map (lblmap_t * map);
 
