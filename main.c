@@ -22,6 +22,7 @@
  * SOFTWARE.
  */
 
+#include "rasm.h"
 #include "rlvm.h"
 #include "bcode.h"
 #include "getopt.h"
@@ -34,18 +35,6 @@
 #ifndef __cplusplus
 #include <stdbool.h>
 #endif /* !__cplusplus */
-
-#ifdef __cplusplus
-extern "C"
-{
-#endif				/* !__cplusplus */
-
-  /* This is from bison */
-  extern bcode_t assemble (FILE ** f, size_t c);
-
-#ifdef __cplusplus
-}
-#endif				/* !__cplusplus */
 
 int
 main (int argc, char **argv)

@@ -1,4 +1,5 @@
 %{
+#include "rasm.h"
 #include "bcode.h"
 #include "lblmap.h"
 #include "instrbuf.h"
@@ -34,8 +35,6 @@ extern "C"
   extern int yylex ();
 
   extern int yyparse ();
-
-  extern bcode_t assemble (FILE **in, size_t count);
 
   extern uint64_t get_lbl_addr (bool pref_data, char *str);
 
