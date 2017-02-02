@@ -1,4 +1,5 @@
 %{
+#include "rasm.h"
 #include "bcode.h"
 #include "lblmap.h"
 #include "instrbuf.h"
@@ -16,6 +17,14 @@ typedef enum section_t
   TEXT = 0, DATA
 } section_t;
 
+typedef struct trunit_t
+{
+  uint64_t stack_size;
+  uint64_t estack_size;
+  lblmap_t lmap;
+  instrbuf_t ibuf;
+} trunit_t;
+
 #ifdef __cplusplus
 extern "C"
 {
@@ -27,7 +36,7 @@ extern "C"
 
   extern int yyparse ();
 
-  extern bcode_t assemble (FILE *in);
+  extern uint64_t get_lbl_addr (bool pref_data, char *str);
 
   extern FILE *yyin;
 
@@ -35,21 +44,19 @@ extern "C"
 
   extern size_t pass;
 
-  extern uint64_t addr;
+  extern lblmap_t glmap;
 
-  extern uint64_t roaddr;
-
-  extern uint64_t stack_size;
-
-  extern uint64_t estack_size;
+  extern opcode_t opc;
 
   extern FILE *ropool;
 
-  extern lblmap_t lmap;
+  extern uint64_t code_len;
 
-  extern instrbuf_t ibuf;
+  extern uint64_t pool_len;
 
-  extern opcode_t opc;
+  extern trunit_t *trans_unit;
+
+  extern size_t tunit_idx;
 
   extern section_t section;
 
@@ -57,6 +64,14 @@ extern "C"
 }
 #endif /* !__cplusplus */
 %}
+
+/**
+ * The RASM assembler is a three-passed assembler.
+ *
+ * 0 - Handle labels address and generate constant pool
+ * 1 - Handle labels visibility (and some collisions)
+ * 2 - Handle label collisions and generate code
+ */
 
 %token COLON COMMA
 %token D_GLOBAL D_SECTION D_STACK D_ESTACK S_TEXT S_DATA S_STDOUT S_STDERR S_STDIN K_HALT K_MOV K_MH32 K_ML32 K_ML16 K_ML8 K_SWP K_I2F K_B2F K_F2IF K_F2B K_F2IC K_RMEH K_THROW K_PUSH K_POP K_LDEX K_PLDEX K_ADD K_SUB K_MUL K_DIV K_MOD K_AND K_OR K_XOR K_NOT K_LSH K_RSH K_SRSH K_ROL K_ROR K_CALL K_JMP K_RET K_JE K_JL K_JG K_JLS K_JGS K_JOF K_JZ K_INEH K_LDS K_STS K_STFBS K_ALLOC K_FREE K_LDB K_LDW K_LDD K_LDQ K_STB K_STW K_STD K_STQ K_SJE K_SJL K_SJSL K_SJG K_SJSG K_SJZ K_LDC K_FOPEN K_FCLOSE K_FFLUSH K_FREWIND K_FREAD K_FWRTB K_FWRTQ K_FWRTS
@@ -99,12 +114,12 @@ bytes:
 
 cbytes:
     cbytes COMMA CHAR {
-      ++roaddr;
-      putc ($3, ropool);
+      if (pass == 0)
+	putc ($3, ropool);
     }
     | CHAR {
-      ++roaddr;
-      putc ($1, ropool);
+      if (pass == 0)
+	putc ($1, ropool);
     }
     ;
 
@@ -117,28 +132,37 @@ stmt:
     defLabel
     | visDirectives
     | visInstr {
-      ++addr;
-      if (pass != 0)
-	push (&ibuf, opc);
+      ++code_len;
+      if (pass == 2)
+	push (&trans_unit[tunit_idx].ibuf, opc);
     }
     ;
 
 defLabel:
     LABEL COLON	{
-      /* Only do something in pass 0 */
-      if (pass == 0)
+      switch (pass)
 	{
-	  if (has_key (&lmap, $1))
+	case 0:
+	  if (has_key (&trans_unit[tunit_idx].lmap, $1))
 	    yyerror ("Label redefined!");
 	  switch (section)
 	    {
 	    case TEXT:
-	      put_entry (&lmap, $1, addr);
+	      put_entry (&trans_unit[tunit_idx].lmap, $1, code_len, tunit_idx);
 	      break;
 	    case DATA:
-	      put_entry (&lmap, $1, roaddr);
+	      fflush (ropool);
+	      put_entry (&trans_unit[tunit_idx].lmap, $1, pool_len, tunit_idx);
 	      break;
 	    }
+	  break;
+	case 1:
+	  break;
+	case 2:
+	  if (has_key (&glmap, $1))
+	    if (get_trans_unit (&glmap, $1) != tunit_idx)
+	      yyerror ("Label collides with global label");
+	  break;
 	}
     }
     ;
@@ -150,18 +174,28 @@ numeric:
 
 visDirectives:
     D_GLOBAL LABEL {
-      if (pass != 0)
+      switch (pass)
 	{
-	  if (!has_key (&lmap, $2))
-	    yyerror ("Attempt to export undefined label");
-	  set_global_flag (&lmap, $2, true);
+	case 0:
+	  break;
+	case 1:
+	  {
+	    lblmap_ent_t *oldcell = remove_entry (&trans_unit[tunit_idx].lmap, $2);
+	    if (oldcell == NULL)
+	      yyerror ("Attempt to export undefined label");
+	    if (!put_if_empty (&glmap, oldcell))
+	      yyerror ("Label collides with global label");
+	    break;
+	  }
+	case 2:
+	  break;
 	}
     }
     | D_STACK INT {
-      stack_size = $2;
+      trans_unit[tunit_idx].stack_size = $2;
     }
     | D_ESTACK INT {
-      estack_size = $2;
+      trans_unit[tunit_idx].estack_size = $2;
     }
     ;
 
@@ -451,148 +485,48 @@ visInstr:
     | K_XOR IREG COMMA IREG COMMA numeric {
       opc = RLVM_XORI ($2, $4, $6);
     }
-    | K_CALL INT {
-      opc = RLVM_CALL ($2);
-    }
     | K_CALL LABEL {
-      if (pass != 0)
-	{
-	  if (!has_key (&lmap, $2))
-	    yyerror ("Undefined label");
-	  if (get_data_flag (&lmap, $2))
-	    fprintf (stderr, "Warning: Using data label (at line %d)\n",
-		     line_num);
-	  opc = RLVM_CALL (get_val (&lmap, $2));
-	}
-    }
-    | K_JMP numeric {
-      opc = RLVM_JMP ($2);
+      if (pass == 2)
+	opc = RLVM_CALL (get_lbl_addr (false, $2));
     }
     | K_JMP LABEL {
-      if (pass != 0)
-	{
-	  if (!has_key (&lmap, $2))
-	    yyerror ("Undefined label");
-	  if (get_data_flag (&lmap, $2))
-	    fprintf (stderr, "Warning: Using data label (at line %d)\n",
-		     line_num);
-	  opc = RLVM_JMP (get_val (&lmap, $2));
-	}
+      if (pass == 2)
+	opc = RLVM_JMP (get_lbl_addr (false, $2));
     }
     | K_RET {
       opc = RLVM_RET ();
     }
-    | K_JE IREG COMMA IREG COMMA numeric {
-      opc = RLVM_JE ($2, $4, $6);
-    }
     | K_JE IREG COMMA IREG COMMA LABEL {
-      if (pass != 0)
-	{
-	  if (!has_key (&lmap, $6))
-	    yyerror ("Undefined label");
-	  if (get_data_flag (&lmap, $6))
-	    fprintf (stderr, "Warning: Using data label (at line %d)\n",
-		     line_num);
-	  opc = RLVM_JE ($2, $4, get_val (&lmap, $6));
-	}
-    }
-    | K_JL IREG COMMA IREG COMMA numeric {
-      opc = RLVM_JL ($2, $4, $6);
+      if (pass == 2)
+	opc = RLVM_JE ($2, $4, get_lbl_addr (false, $6));
     }
     | K_JL IREG COMMA IREG COMMA LABEL {
-      if (pass != 0)
-	{
-	  if (!has_key (&lmap, $6))
-	    yyerror ("Undefined label");
-	  if (get_data_flag (&lmap, $6))
-	    fprintf (stderr, "Warning: Using data label (at line %d)\n",
-		     line_num);
-	  opc = RLVM_JL ($2, $4, get_val (&lmap, $6));
-	}
-    }
-    | K_JG IREG COMMA IREG COMMA numeric {
-      opc = RLVM_JG ($2, $4, $6);
+      if (pass == 2)
+	opc = RLVM_JL ($2, $4, get_lbl_addr (false, $6));
     }
     | K_JG IREG COMMA IREG COMMA LABEL {
-      if (pass != 0)
-	{
-	  if (!has_key (&lmap, $6))
-	    yyerror ("Undefined label");
-	  if (get_data_flag (&lmap, $6))
-	    fprintf (stderr, "Warning: Using data label (at line %d)\n",
-		     line_num);
-	  opc = RLVM_JG ($2, $4, get_val (&lmap, $6));
-	}
-    }
-    | K_JLS IREG COMMA IREG COMMA numeric {
-      opc = RLVM_JLS ($2, $4, $6);
+      if (pass == 2)
+	opc = RLVM_JG ($2, $4, get_lbl_addr (false, $6));
     }
     | K_JLS IREG COMMA IREG COMMA LABEL {
-      if (pass != 0)
-	{
-	  if (!has_key (&lmap, $6))
-	    yyerror ("Undefined label");
-	  if (get_data_flag (&lmap, $6))
-	    fprintf (stderr, "Warning: Using data label (at line %d)\n",
-		     line_num);
-	  opc = RLVM_JLS ($2, $4, get_val (&lmap, $6));
-	}
-    }
-    | K_JGS IREG COMMA IREG COMMA numeric {
-      opc = RLVM_JGS ($2, $4, $6);
+      if (pass == 2)
+	opc = RLVM_JLS ($2, $4, get_lbl_addr (false, $6));
     }
     | K_JGS IREG COMMA IREG COMMA LABEL {
-      if (pass != 0)
-	{
-	  if (!has_key (&lmap, $6))
-	    yyerror ("Undefined label");
-	  if (get_data_flag (&lmap, $6))
-	    fprintf (stderr, "Warning: Using data label (at line %d)\n",
-		     line_num);
-	  opc = RLVM_JGS ($2, $4, get_val (&lmap, $6));
-	}
-    }
-    | K_JE FREG COMMA FREG COMMA numeric {
-      opc = RLVM_JFE ($2, $4, $6);
+      if (pass == 2)
+	opc = RLVM_JGS ($2, $4, get_lbl_addr (false, $6));
     }
     | K_JE FREG COMMA FREG COMMA LABEL {
-      if (pass != 0)
-	{
-	  if (!has_key (&lmap, $6))
-	    yyerror ("Undefined label");
-	  if (get_data_flag (&lmap, $6))
-	    fprintf (stderr, "Warning: Using data label (at line %d)\n",
-		     line_num);
-	  opc = RLVM_JFE ($2, $4, get_val (&lmap, $6));
-	}
-    }
-    | K_JL FREG COMMA FREG COMMA numeric {
-      opc = RLVM_JFL ($2, $4, $6);
+      if (pass == 2)
+	opc = RLVM_JFE ($2, $4, get_lbl_addr (false, $6));
     }
     | K_JL FREG COMMA FREG COMMA LABEL {
-      if (pass != 0)
-	{
-	  if (!has_key (&lmap, $6))
-	    yyerror ("Undefined label");
-	  if (get_data_flag (&lmap, $6))
-	    fprintf (stderr, "Warning: Using data label (at line %d)\n",
-		     line_num);
-	  opc = RLVM_JFL ($2, $4, get_val (&lmap, $6));
-	}
-    }
-    | K_JG FREG COMMA FREG COMMA numeric {
-      opc = RLVM_JFG ($2, $4, $6);
+      if (pass == 2)
+	opc = RLVM_JFL ($2, $4, get_lbl_addr (false, $6));
     }
     | K_JG FREG COMMA FREG COMMA LABEL {
-      if (pass != 0)
-	{
-	  if (!has_key (&lmap, $6))
-	    yyerror ("Undefined label");
-	  if (get_data_flag (&lmap, $6))
-	    fprintf (stderr, "Warning: Using data label (at line %d)\n",
-		     line_num);
-	  opc = RLVM_JFG ($2, $4, get_val (&lmap, $6));
-	}
+      if (pass == 2)
+	opc = RLVM_JFG ($2, $4, get_lbl_addr (false, $6));
     }
     | K_JOF numeric {
       opc = RLVM_JOF ($2);
@@ -606,47 +540,17 @@ visInstr:
     | K_JMP IREG COMMA K_LSH numeric COMMA numeric {
       opc = RLVM_JIR ($2, $5, $7);
     }
-    | K_JZ IREG COMMA numeric {
-      opc = RLVM_JIRZ ($2, $4);
-    }
     | K_JZ IREG COMMA LABEL {
-      if (pass != 0)
-	{
-	  if (!has_key (&lmap, $4))
-	    yyerror ("Undefined label");
-	  if (get_data_flag (&lmap, $4))
-	    fprintf (stderr, "Warning: Using data label (at line %d)\n",
-		     line_num);
-	  opc = RLVM_JIRZ ($2, get_val (&lmap, $4));
-	}
-    }
-    | K_JZ FREG COMMA numeric {
-      opc = RLVM_JFRZ ($2, $4);
+      if (pass == 2)
+	opc = RLVM_JIRZ ($2, get_lbl_addr (false, $4));
     }
     | K_JZ FREG COMMA LABEL {
-      if (pass != 0)
-	{
-	  if (!has_key (&lmap, $4))
-	    yyerror ("Undefined label");
-	  if (get_data_flag (&lmap, $4))
-	    fprintf (stderr, "Warning: Using data label (at line %d)\n",
-		     line_num);
-	  opc = RLVM_JFRZ ($2, get_val (&lmap, $4));
-	}
-    }
-    | K_INEH numeric {
-      opc = RLVM_INEH ($2);
+      if (pass == 2)
+	opc = RLVM_JFRZ ($2, get_lbl_addr (false, $4));
     }
     | K_INEH LABEL {
-      if (pass != 0)
-	{
-	  if (!has_key (&lmap, $2))
-	    yyerror ("Undefined label");
-	  if (get_data_flag (&lmap, $2))
-	    fprintf (stderr, "Warning: Using data label (at line %d)\n",
-		     line_num);
-	  opc = RLVM_INEH (get_val (&lmap, $2));
-	}
+      if (pass == 2)
+	opc = RLVM_INEH (get_lbl_addr (false, $2));
     }
     | K_LDS IREG COMMA numeric {
       opc = RLVM_IRLD ($2, $4);
@@ -727,32 +631,12 @@ visInstr:
       opc = RLVM_SFRZ ($2);
     }
     | K_LDC IREG COMMA IREG COMMA LABEL {
-      if (pass != 0)
-	{
-	  if (!has_key (&lmap, $6))
-	    yyerror ("Undefined label");
-	  if (!get_data_flag (&lmap, $6))
-	    fprintf (stderr, "Warning: Using non-data label (at line %d)\n",
-		     line_num);
-	  opc = RLVM_LDPO ($2, $4, get_val (&lmap, $6));
-	}
-    }
-    | K_LDC IREG COMMA IREG COMMA numeric {
-      opc = RLVM_LDPO ($2, $4, $6);
+      if (pass == 2)
+	opc = RLVM_LDPO ($2, $4, get_lbl_addr (true, $6));
     }
     | K_LDC IREG COMMA LABEL {
-      if (pass != 0)
-	{
-	  if (!has_key (&lmap, $4))
-	    yyerror ("Undefined label");
-	  if (!get_data_flag (&lmap, $4))
-	    fprintf (stderr, "Warning: Using non-data label (at line %d)\n",
-		     line_num);
-	  opc = RLVM_LDPA ($2, get_val (&lmap, $4));
-	}
-    }
-    | K_LDC IREG COMMA INT {
-      opc = RLVM_LDPA ($2, $4);
+      if (pass == 2)
+	opc = RLVM_LDPA ($2, get_lbl_addr (true, $4));
     }
     | K_FREAD IREG COMMA IREG {
       opc = RLVM_FREAD_CH ($2, $4);
@@ -802,14 +686,13 @@ visInstr:
 
 /* No assignment. Only allocate memory */
 size_t pass;
-uint64_t addr;
-uint64_t roaddr;
-uint64_t stack_size;
-uint64_t estack_size;
-FILE *ropool;
-lblmap_t lmap;
-instrbuf_t ibuf;
+lblmap_t glmap;
 opcode_t opc;
+FILE *ropool;
+trunit_t *trans_unit;
+size_t tunit_idx;
+uint64_t code_len;
+uint64_t pool_len;
 section_t section;
 
 static inline
@@ -824,51 +707,104 @@ is_big_endian (void)
 }
 
 bcode_t
-assemble (FILE *in)
+assemble (FILE **in, size_t count)
 {
-  pass = stack_size = estack_size = roaddr = addr = 0;
-  section = TEXT;
-  lmap = init_map (64);
-  ibuf = init_buf (16);
-  yyin = in;
+  char *pool_dat;
+  ropool = open_memstream (&pool_dat, &pool_len);
 
-  char *ropool_dat;
-  size_t ropool_len;
-  ropool = open_memstream (&ropool_dat, &ropool_len);
+  trans_unit = calloc (count, sizeof (trunit_t));
+  size_t i;
+  for (i = 0; i < count; ++i)
+    trans_unit[i] = (trunit_t) {
+      .stack_size = 0,
+      .estack_size = 0,
+      .lmap = init_map (64),
+      .ibuf = init_buf (16)
+    };
 
-  do
+  code_len = pass = 0;
+  glmap = init_map (64);
+
+  for (tunit_idx = 0; tunit_idx < count; ++tunit_idx)
     {
-      yyparse ();
+      section = TEXT;
+      yyin = in[tunit_idx];
+
+      do
+	{
+	  yyparse ();
+	}
+      while (!feof (yyin));
+
+      rewind (yyin);
+      line_num = 1;
     }
-  while (!feof (yyin));
+  ++pass, code_len = 0;
 
-  rewind (yyin);
-  ++pass, roaddr = addr = 0;
-
-  do
+  for (tunit_idx = 0; tunit_idx < count; ++tunit_idx)
     {
-      yyparse ();
+      yyin = in[tunit_idx];
+      do
+	{
+	  yyparse ();
+	}
+      while (!feof (yyin));
+
+      rewind (yyin);
+      line_num = 1;
     }
-  while (!feof (yyin));
+  ++pass, code_len = 0;
+
+  for (tunit_idx = 0; tunit_idx < count; ++tunit_idx)
+    {
+      yyin = in[tunit_idx];
+      do
+	{
+	  yyparse ();
+	}
+      while (!feof (yyin));
+      line_num = 1;
+    }
 
   fflush (ropool);
   fclose (ropool);
+
+  size_t final_cssize = 0;
+  size_t final_essize = 0;
+
+  for (i = 0; i < count; ++i)
+    {
+      final_cssize += trans_unit[i].stack_size;
+      final_essize += trans_unit[i].estack_size;
+    }
 
   bcode_t obj = (bcode_t) {
     .magic = {
       0x2C, is_big_endian () ? 0xDF : 0xD0
     },
-    .cstack_size = stack_size,
-    .estack_size = estack_size,
-    .ropool_size = ropool_len,
-    .code_size = ibuf.size,
-    .code = calloc (sizeof (opcode_t), ibuf.size),
-    .ropool = ropool_dat		/* DO NOT FREE ropool_dat! */
+    .cstack_size = final_cssize,
+    .estack_size = final_essize,
+    .ropool_size = pool_len,
+    .code_size = code_len,
+    .code = calloc (sizeof (opcode_t), code_len),
+    .ropool = pool_dat /* DO NOT FREE ropool_dat! */
   };
-  memcpy (obj.code, ibuf.ptr, ibuf.size * sizeof (opcode_t));
 
-  free_map (&lmap);
-  free_buf (&ibuf);
+  size_t off;
+  for (i = off = 0; i < count; ++i)
+    {
+      memcpy (obj.code + off, trans_unit[i].ibuf.ptr,
+	      trans_unit[i].ibuf.size * sizeof (opcode_t));
+      off += trans_unit[i].ibuf.size;
+    }
+
+  free_map (&glmap);
+  for (i = 0; i < count; ++i)
+    {
+      free_map (&trans_unit[i].lmap);
+      free_buf (&trans_unit[i].ibuf);
+    }
+  free (trans_unit);
 
   return obj;
 }
@@ -878,4 +814,43 @@ yyerror (char *s)
 {
   fprintf (stderr, "%s (at line %d)\n", s, line_num);
   exit (-1);
+}
+
+uint64_t
+get_lbl_addr (bool pref_data, char *str)
+{
+  if (has_key (&trans_unit[tunit_idx].lmap, str))
+    {
+      if (get_data_flag (&trans_unit[tunit_idx].lmap, str))
+	{
+	  if (!pref_data)
+	    fprintf (stderr, "Warning: Using data label (at line %d)\n",
+		     line_num);
+	}
+      else
+	{
+	  if (pref_data)
+	    fprintf (stderr, "Warning: Using non-data label (at line %d)\n",
+		     line_num);
+	}
+      return get_val (&trans_unit[tunit_idx].lmap, str);
+    }
+  if (has_key (&glmap, str))
+    {
+      if (get_data_flag (&glmap, str))
+	{
+	  if (!pref_data)
+	    fprintf (stderr, "Warning: Using data label (at line %d)\n",
+		     line_num);
+	}
+      else
+	{
+	  if (pref_data)
+	    fprintf (stderr, "Warning: Using non-data label (at line %d)\n",
+		     line_num);
+	}
+      return get_val (&glmap, str);
+    }
+  yyerror ("Undefined label");
+  return 0;			/* Never reaches this line */
 }

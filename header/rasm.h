@@ -22,60 +22,23 @@
  * SOFTWARE.
  */
 
-#ifndef __LBLMAP_H__
-#define __LBLMAP_H__
+#ifndef __RASM_H__
+#define __RASM_H__
 
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
+#include "bcode.h"
 
-#ifndef __cplusplus
-#include <stdbool.h>
-#endif /* !__cplusplus */
-
-typedef struct lblmap_ent_t
-{
-  char *key;
-  uint64_t val;
-  size_t trans_unit;
-  bool data_flag;
-  struct lblmap_ent_t *next;
-} lblmap_ent_t;
-
-typedef struct lblmap_t
-{
-  size_t bucket_size;
-  lblmap_ent_t **ptr;
-} lblmap_t;
+#include <stdio.h>
+#include <stddef.h>
 
 #ifdef __cplusplus
 extern "C"
 {
 #endif				/* !__cplusplus */
 
-  extern lblmap_t init_map (size_t bucket_size);
-
-  extern void put_entry (lblmap_t * map, char *key, uint64_t val,
-			 size_t tunit);
-
-  extern bool put_if_empty (lblmap_t * map, lblmap_ent_t * ent);
-
-  extern bool has_key (lblmap_t * map, char *key);
-
-  extern void set_data_flag (lblmap_t * map, char *key, bool flag);
-
-  extern size_t get_trans_unit (lblmap_t * map, char *key);
-
-  extern bool get_data_flag (lblmap_t * map, char *key);
-
-  extern uint64_t get_val (lblmap_t * map, char *key);
-
-  extern lblmap_ent_t *remove_entry (lblmap_t * map, char *key);
-
-  extern void free_map (lblmap_t * map);
+  extern bcode_t assemble (FILE ** in, size_t count);
 
 #ifdef __cplusplus
 }
 #endif				/* !__cplusplus */
 
-#endif				/* !__LBLMAP_H__ */
+#endif				/* !__RASM_H__ */

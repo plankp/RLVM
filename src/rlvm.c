@@ -639,8 +639,9 @@ exec_bytecode (rlvm_t * vm, const uint64_t len, opcode_t * ops)
 	      case 3:		/* zero */
 		rst =
 		  (instr.svar.immediate & 8) ? (vm->fregs[instr.svar.rs] ==
-						0) : (vm->iregs[instr.svar.
-								rs] == 0);
+						0) : (vm->iregs[instr.
+								svar.rs] ==
+						      0);
 		break;
 	      }
 	    /*
@@ -674,7 +675,7 @@ exec_bytecode (rlvm_t * vm, const uint64_t len, opcode_t * ops)
 	      break;
 	    case 2:		/* Read float */
 	      vm->iregs[instr.fvar.rt] =
-		fscanf ((FILE *) vm->iregs[instr.fvar.rs], "%f",
+		fscanf ((FILE *) vm->iregs[instr.fvar.rs], "%lf",
 			&vm->fregs[instr.fvar.rd]);
 	      break;
 	    case 3:		/* Write char */

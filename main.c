@@ -22,38 +22,28 @@
  * SOFTWARE.
  */
 
+#include "rasm.h"
 #include "rlvm.h"
 #include "bcode.h"
+#include "getopt.h"
 
 #include <ctype.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <unistd.h>
 
-#ifdef __cplusplus
+#ifndef __cplusplus
 #include <stdbool.h>
-
-extern "C"
-{
-#endif				/* !__cplusplus */
-
-  /* This is from bison */
-  extern bcode_t assemble (FILE * f);
-
-#ifdef __cplusplus
-}
-#endif				/* !__cplusplus */
+#endif /* !__cplusplus */
 
 int
 main (int argc, char **argv)
 {
   bool compile = false;
   bool run = false;
-  char *inf = NULL;
+  size_t num_inf = 0;
+  char **inf = NULL;
   char *outf = NULL;
-
-  opterr = 0;
 
   int c;
   while ((c = getopt (argc, argv, "cro:h")) != -1)
@@ -69,7 +59,8 @@ main (int argc, char **argv)
 	outf = optarg;
 	break;
       case 'h':
-	printf ("Usage: rlvm [options] file\n"
+      print_help_msg:
+	printf ("Usage: rlvm [options] file...\n"
 		"Options:\n"
 		"  -c    Compile assembly file\n"
 		"  -r    Executes a bytecode (or assembly file if -c is used)\n"
@@ -80,9 +71,16 @@ main (int argc, char **argv)
 		"<https://github.com/plankp/rlvm>.");
 	return 1;
       default:
-	abort ();
+	goto print_help_msg;
       }
-  inf = argv[optind];
+  inf = argv + optind;
+  num_inf = argc - optind;
+
+  if (num_inf == 0)
+    {
+      fprintf (stderr, "error: no input files\n");
+      return 2;
+    }
 
   bcode_t code;
   if (compile)
@@ -92,26 +90,33 @@ main (int argc, char **argv)
        * is NULL, that means we do not save
        * the compiled binary.
        */
-      FILE *f = fopen (inf, "r");
-      if (f == NULL)
+      FILE *files[num_inf];
+      size_t i;
+      for (i = 0; i < num_inf; ++i)
 	{
-	  fprintf (stderr, "Failed to read file %s\n", inf);
-	  return 2;
+	  FILE *f = fopen (inf[i], "r");
+	  if (f == NULL)
+	    {
+	      fprintf (stderr, "error: failed to read file %s\n", inf[i]);
+	      return 2;
+	    }
+	  files[i] = f;
 	}
-      code = assemble (f);
-      fclose (f);
+      code = assemble (files, num_inf);
+      for (i = 0; i < num_inf; ++i)
+	fclose (files[i]);
 
       if (outf != NULL)
 	{
-	  f = fopen (outf, "wb");
+	  FILE *f = fopen (outf, "wb");
 	  if (f == NULL)
 	    {
-	      fprintf (stderr, "Failed to open file %s\n", outf);
+	      fprintf (stderr, "error: failed to open file %s\n", outf);
 	      return 2;
 	    }
 	  if (!write_bytecode (f, &code))
 	    {
-	      fprintf (stderr, "Failed to write file %s\n", outf);
+	      fprintf (stderr, "error: failed to write file %s\n", outf);
 	      return 2;
 	    }
 	  fflush (f);
@@ -124,10 +129,11 @@ main (int argc, char **argv)
       if (!compile)
 	{
 	  /* Read and initalize $code */
-	  FILE *f = fopen (inf, "rb");
+	  FILE *f = fopen (*inf, "rb");
 	  if (read_bytecode (f, &code) == NULL)
 	    {
-	      fprintf (stderr, "Failed interpreting bytecode from %s\n", inf);
+	      fprintf (stderr,
+		       "error: failed interpreting bytecode from %s\n", *inf);
 	      return 3;
 	    }
 	  fclose (f);
