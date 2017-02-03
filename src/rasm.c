@@ -281,6 +281,15 @@ __dis_alu_immediate (opcode_t opcode, FILE * out, char *op)
 
 }
 
+static inline void
+__dis_flt_immediate (opcode_t opcode, FILE * out, char *op)
+{
+  print_svar_opcode (opcode.svar, out);
+  fprintf (out, " %s fp%d,fp%d,%u\n", op, opcode.svar.rs, opcode.svar.rt,
+	   opcode.svar.immediate);
+
+}
+
 static void
 dis_opcode_4 (opcode_t opcode, FILE * out)
 {
@@ -336,6 +345,150 @@ dis_opcode_12 (opcode_t opcode, FILE * out)
   fprintf (out, " call %u\n", opcode.tvar.target);
 }
 
+static void
+dis_opcode_13 (opcode_t opcode, FILE * out)
+{
+  print_tvar_opcode (opcode.tvar, out);
+  fprintf (out, " jmp %u\n", opcode.tvar.target);
+}
+
+static void
+dis_opcode_14 (opcode_t opcode, FILE * out)
+{
+  print_tvar_opcode (opcode.tvar, out);
+  fprintf (out, " ret %u\n", opcode.tvar.target);
+}
+
+static void
+dis_opcode_15 (opcode_t opcode, FILE * out)
+{
+  __dis_alu_immediate (opcode, out, "je");
+}
+
+static void
+dis_opcode_16 (opcode_t opcode, FILE * out)
+{
+  __dis_alu_immediate (opcode, out, "jl");
+}
+
+static void
+dis_opcode_17 (opcode_t opcode, FILE * out)
+{
+  __dis_alu_immediate (opcode, out, "jg");
+}
+
+static void
+dis_opcode_18 (opcode_t opcode, FILE * out)
+{
+  __dis_alu_immediate (opcode, out, "jls");
+}
+
+static void
+dis_opcode_19 (opcode_t opcode, FILE * out)
+{
+  __dis_alu_immediate (opcode, out, "jgs");
+}
+
+static void
+dis_opcode_20 (opcode_t opcode, FILE * out)
+{
+  __dis_flt_immediate (opcode, out, "je");
+}
+
+static void
+dis_opcode_21 (opcode_t opcode, FILE * out)
+{
+  __dis_flt_immediate (opcode, out, "jl");
+}
+
+static void
+dis_opcode_22 (opcode_t opcode, FILE * out)
+{
+  __dis_flt_immediate (opcode, out, "jg");
+}
+
+static void
+dis_opcode_23 (opcode_t opcode, FILE * out)
+{
+  print_tvar_opcode (opcode.tvar, out);
+  fprintf (out, " jof %u\n", opcode.tvar.target);
+}
+
+static void
+dis_opcode_24 (opcode_t opcode, FILE * out)
+{
+  print_svar_opcode (opcode.svar, out);
+  fprintf (out, " jmp r%d", opcode.svar.rs);
+  if (opcode.svar.rt > 0)
+    fprintf (out, ",LSH %u", opcode.svar.rt);
+  if (opcode.svar.immediate > 0)
+    fprintf (out, ",%u", opcode.svar.immediate);
+  fprintf (out, "\n");
+}
+
+static void
+dis_opcode_25 (opcode_t opcode, FILE * out)
+{
+  print_svar_opcode (opcode.svar, out);
+  switch (opcode.svar.rt)
+    {
+    case 0:
+      fprintf (out, " jz r%d\n", opcode.svar.rs);
+      break;
+    case 1:
+      fprintf (out, " jz fp%d\n", opcode.svar.rs);
+      break;
+    }
+}
+
+static void
+dis_opcode_26 (opcode_t opcode, FILE * out)
+{
+  print_tvar_opcode (opcode.tvar, out);
+  fprintf (out, " ineh %u\n", opcode.tvar.target);
+}
+
+static void
+dis_opcode_27 (opcode_t opcode, FILE * out)
+{
+  print_svar_opcode (opcode.svar, out);
+  switch (opcode.svar.rs)
+    {
+    case 0:
+      fprintf (out, " ld r%d,%u\n", opcode.svar.rt, opcode.svar.immediate);
+      break;
+    case 1:
+      fprintf (out, " ld fp%d,%u\n", opcode.svar.rt, opcode.svar.immediate);
+      break;
+    case 2:
+      fprintf (out, " st r%d,%u\n", opcode.svar.rt, opcode.svar.immediate);
+      break;
+    case 3:
+      fprintf (out, " st fp%d,%u\n", opcode.svar.rt, opcode.svar.immediate);
+      break;
+    case 4:
+      fprintf (out, " stfb fp%d,%u\n", opcode.svar.rt, opcode.svar.immediate);
+      break;
+    }
+}
+
+static void
+dis_opcode_28 (opcode_t opcode, FILE * out)
+{
+  print_svar_opcode (opcode.svar, out);
+  if (opcode.svar.immediate == 0)
+    fprintf (out, " alloc r%d,r%d\n", opcode.svar.rt, opcode.svar.rs);
+  else
+    fprintf (out, " alloc r%d,%u\n", opcode.svar.rt, opcode.svar.immediate);
+}
+
+static void
+dis_opcode_29 (opcode_t opcode, FILE * out)
+{
+  print_svar_opcode (opcode.svar, out);
+  fprintf (out, " free r%d\n", opcode.svar.rt);
+}
+
 int
 disassemble (bcode_t * code, size_t count, FILE * out)
 {
@@ -361,7 +514,11 @@ disassemble (bcode_t * code, size_t count, FILE * out)
 	{ &dis_opcode_0, &dis_opcode_1, &dis_opcode_2, &dis_opcode_3,
 	&dis_opcode_4, &dis_opcode_5, &dis_opcode_6, &dis_opcode_7,
 	&dis_opcode_8, &dis_opcode_9, &dis_opcode_10, &dis_opcode_11,
-	&dis_opcode_12
+	&dis_opcode_12, &dis_opcode_13, &dis_opcode_14, &dis_opcode_15,
+	&dis_opcode_16, &dis_opcode_17, &dis_opcode_18, &dis_opcode_19,
+	&dis_opcode_20, &dis_opcode_21, &dis_opcode_22, &dis_opcode_23,
+	&dis_opcode_24, &dis_opcode_25, &dis_opcode_26, &dis_opcode_27,
+	&dis_opcode_28, &dis_opcode_29,
       };
       static const size_t dtab_len =
 	sizeof (dis_table) / sizeof (dis_table[0]);

@@ -639,8 +639,9 @@ exec_bytecode (rlvm_t * vm, const uint64_t len, opcode_t * ops)
 	      case 3:		/* zero */
 		rst =
 		  (instr.svar.immediate & 8) ? (vm->fregs[instr.svar.rs] ==
-						0) : (vm->iregs[instr.svar.
-								rs] == 0);
+						0) : (vm->iregs[instr.
+								svar.rs] ==
+						      0);
 		break;
 	      }
 	    /*
