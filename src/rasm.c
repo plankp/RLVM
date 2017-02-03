@@ -161,76 +161,179 @@ dis_opcode_1 (opcode_t opcode, FILE * out)
   switch (opcode.fvar.fn & 15)
     {
     case 0:
-      printf (" add r%d,r%d,r%d", opcode.fvar.rd, opcode.fvar.rs,
-	      opcode.fvar.rt);
+      fprintf (out, " add r%d,r%d,r%d", opcode.fvar.rd, opcode.fvar.rs,
+	       opcode.fvar.rt);
       break;
     case 1:
-      printf (" sub r%d,r%d,r%d", opcode.fvar.rd, opcode.fvar.rs,
-	      opcode.fvar.rt);
+      fprintf (out, " sub r%d,r%d,r%d", opcode.fvar.rd, opcode.fvar.rs,
+	       opcode.fvar.rt);
       break;
     case 2:
-      printf (" mul r%d,r%d,r%d", opcode.fvar.rd, opcode.fvar.rs,
-	      opcode.fvar.rt);
+      fprintf (out, " mul r%d,r%d,r%d", opcode.fvar.rd, opcode.fvar.rs,
+	       opcode.fvar.rt);
       break;
     case 3:
-      printf (" div r%d,r%d,r%d", opcode.fvar.rd, opcode.fvar.rs,
-	      opcode.fvar.rt);
+      fprintf (out, " div r%d,r%d,r%d", opcode.fvar.rd, opcode.fvar.rs,
+	       opcode.fvar.rt);
       break;
     case 4:
-      printf (" mod r%d,r%d,r%d", opcode.fvar.rd, opcode.fvar.rs,
-	      opcode.fvar.rt);
+      fprintf (out, " mod r%d,r%d,r%d", opcode.fvar.rd, opcode.fvar.rs,
+	       opcode.fvar.rt);
       break;
     case 5:
-      printf (" and r%d,r%d,r%d", opcode.fvar.rd, opcode.fvar.rs,
-	      opcode.fvar.rt);
+      fprintf (out, " and r%d,r%d,r%d", opcode.fvar.rd, opcode.fvar.rs,
+	       opcode.fvar.rt);
       break;
     case 6:
-      printf (" or r%d,r%d,r%d", opcode.fvar.rd, opcode.fvar.rs,
-	      opcode.fvar.rt);
+      fprintf (out, " or r%d,r%d,r%d", opcode.fvar.rd, opcode.fvar.rs,
+	       opcode.fvar.rt);
       break;
     case 7:
-      printf (" xor r%d,r%d,r%d", opcode.fvar.rd, opcode.fvar.rs,
-	      opcode.fvar.rt);
+      fprintf (out, " xor r%d,r%d,r%d", opcode.fvar.rd, opcode.fvar.rs,
+	       opcode.fvar.rt);
       break;
     case 8:
-      printf (" not r%d,r%d", opcode.fvar.rd, opcode.fvar.rt);
+      fprintf (out, " not r%d,r%d", opcode.fvar.rd, opcode.fvar.rt);
       break;
     case 9:
-      printf (" lsh r%d,r%d,r%d", opcode.fvar.rd, opcode.fvar.rs,
-	      opcode.fvar.rt);
+      fprintf (out, " lsh r%d,r%d,r%d", opcode.fvar.rd, opcode.fvar.rs,
+	       opcode.fvar.rt);
       break;
     case 10:
-      printf (" rsh r%d,r%d,r%d", opcode.fvar.rd, opcode.fvar.rs,
-	      opcode.fvar.rt);
+      fprintf (out, " rsh r%d,r%d,r%d", opcode.fvar.rd, opcode.fvar.rs,
+	       opcode.fvar.rt);
       break;
     case 11:
-      printf (" srsh r%d,r%d,r%d", opcode.fvar.rd, opcode.fvar.rs,
-	      opcode.fvar.rt);
+      fprintf (out, " srsh r%d,r%d,r%d", opcode.fvar.rd, opcode.fvar.rs,
+	       opcode.fvar.rt);
       break;
     case 12:
-      printf (" rol r%d,r%d,r%d", opcode.fvar.rd, opcode.fvar.rs,
-	      opcode.fvar.rt);
+      fprintf (out, " rol r%d,r%d,r%d", opcode.fvar.rd, opcode.fvar.rs,
+	       opcode.fvar.rt);
       break;
     case 13:
-      printf (" ror r%d,r%d,r%d", opcode.fvar.rd, opcode.fvar.rs,
-	      opcode.fvar.rt);
+      fprintf (out, " ror r%d,r%d,r%d", opcode.fvar.rd, opcode.fvar.rs,
+	       opcode.fvar.rt);
       break;
     }
   switch (opcode.fvar.fn >> 4)
     {
     case 0:
-      printf ("\n");
+      fprintf (out, "\n");
       break;
     case 1:
-      printf (",LSH %u\n", opcode.fvar.sa);
+      fprintf (out, ",LSH %u\n", opcode.fvar.sa);
       break;
     case 2:
-      printf (",RSH %u\n", opcode.fvar.sa);
+      fprintf (out, ",RSH %u\n", opcode.fvar.sa);
       break;
     case 3:
-      printf (",SRSH %u\n", opcode.fvar.sa);
+      fprintf (out, ",SRSH %u\n", opcode.fvar.sa);
       break;
     }
+}
+
+static void
+dis_opcode_2 (opcode_t opcode, FILE * out)
+{
+  print_fvar_opcode (opcode.fvar, out);
+  switch (opcode.fvar.fn)
+    {
+    case 0:
+      fprintf (out, " add fp%d,fp%d,fp%d", opcode.fvar.rd, opcode.fvar.rs,
+	       opcode.fvar.rt);
+      break;
+    case 1:
+      fprintf (out, " sub fp%d,fp%d,fp%d", opcode.fvar.rd, opcode.fvar.rs,
+	       opcode.fvar.rt);
+      break;
+    case 2:
+      fprintf (out, " mul fp%d,fp%d,fp%d", opcode.fvar.rd, opcode.fvar.rs,
+	       opcode.fvar.rt);
+      break;
+    case 3:
+      fprintf (out, " div fp%d,fp%d,fp%d", opcode.fvar.rd, opcode.fvar.rs,
+	       opcode.fvar.rt);
+      break;
+    case 4:
+      fprintf (out, " mod fp%d,fp%d,fp%d", opcode.fvar.rd, opcode.fvar.rs,
+	       opcode.fvar.rt);
+      break;
+    }
+}
+
+static void
+dis_opcode_3 (opcode_t opcode, FILE * out)
+{
+  print_svar_opcode (opcode.svar, out);
+  fprintf (out, " mov r%d,%u", opcode.svar.rs, opcode.svar.immediate);
+  if (opcode.svar.rt > 0)
+    fprintf (out, ",LSH %u", opcode.svar.rt);
+  fprintf (out, "\n");
+}
+
+static inline void
+__dis_alu_immediate (opcode_t opcode, FILE * out, char *op)
+{
+  print_svar_opcode (opcode.svar, out);
+  fprintf (out, " %s r%d,r%d,%u\n", op, opcode.svar.rs, opcode.svar.rt,
+	   opcode.svar.immediate);
+
+}
+
+static void
+dis_opcode_4 (opcode_t opcode, FILE * out)
+{
+  __dis_alu_immediate (opcode, out, "add");
+}
+
+static void
+dis_opcode_5 (opcode_t opcode, FILE * out)
+{
+  __dis_alu_immediate (opcode, out, "sub");
+}
+
+static void
+dis_opcode_6 (opcode_t opcode, FILE * out)
+{
+  __dis_alu_immediate (opcode, out, "mul");
+}
+
+static void
+dis_opcode_7 (opcode_t opcode, FILE * out)
+{
+  __dis_alu_immediate (opcode, out, "div");
+}
+
+static void
+dis_opcode_8 (opcode_t opcode, FILE * out)
+{
+  __dis_alu_immediate (opcode, out, "mod");
+}
+
+static void
+dis_opcode_9 (opcode_t opcode, FILE * out)
+{
+  __dis_alu_immediate (opcode, out, "and");
+}
+
+static void
+dis_opcode_10 (opcode_t opcode, FILE * out)
+{
+  __dis_alu_immediate (opcode, out, "or");
+}
+
+static void
+dis_opcode_11 (opcode_t opcode, FILE * out)
+{
+  __dis_alu_immediate (opcode, out, "xor");
+}
+
+static void
+dis_opcode_12 (opcode_t opcode, FILE * out)
+{
+  print_tvar_opcode (opcode.tvar, out);
+  fprintf (out, " call %u\n", opcode.tvar.target);
 }
 
 int
@@ -254,7 +357,12 @@ disassemble (bcode_t * code, size_t count, FILE * out)
 	       "Disassembly of section TEXT\n",
 	       code[i].cstack_size, code[i].estack_size, code[i].ropool_size);
 
-      static const disf_t dis_table[] = { &dis_opcode_0, &dis_opcode_1 };
+      static const disf_t dis_table[] =
+	{ &dis_opcode_0, &dis_opcode_1, &dis_opcode_2, &dis_opcode_3,
+	&dis_opcode_4, &dis_opcode_5, &dis_opcode_6, &dis_opcode_7,
+	&dis_opcode_8, &dis_opcode_9, &dis_opcode_10, &dis_opcode_11,
+	&dis_opcode_12
+      };
       static const size_t dtab_len =
 	sizeof (dis_table) / sizeof (dis_table[0]);
 
