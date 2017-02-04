@@ -32,6 +32,12 @@ rlvm -c -o output/name.bin your/file.asm
 
 Note: `your/file.asm` has to be the at the end
 
+To get a `objdump` like output, enter this command
+
+```
+rlvm -d some/binary.bin
+```
+
 To get help, type
 
 ```
