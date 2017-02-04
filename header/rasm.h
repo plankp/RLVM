@@ -25,10 +25,12 @@
 #ifndef __RASM_H__
 #define __RASM_H__
 
+#include "rlvm.h"
 #include "bcode.h"
 
 #include <stdio.h>
-#include <stddef.h>
+#include <string.h>
+#include <inttypes.h>
 
 #ifdef __cplusplus
 extern "C"
@@ -36,6 +38,8 @@ extern "C"
 #endif				/* !__cplusplus */
 
   extern bcode_t assemble (FILE ** in, size_t count);
+
+  extern int disassemble (bcode_t * code, size_t count, FILE * out);
 
 #ifdef __cplusplus
 }

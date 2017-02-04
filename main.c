@@ -41,12 +41,13 @@ main (int argc, char **argv)
 {
   bool compile = false;
   bool run = false;
+  bool dasm = false;
   size_t num_inf = 0;
   char **inf = NULL;
   char *outf = NULL;
 
   int c;
-  while ((c = getopt (argc, argv, "cro:h")) != -1)
+  while ((c = getopt (argc, argv, "crdo:h")) != -1)
     switch (c)
       {
       case 'c':
@@ -55,6 +56,9 @@ main (int argc, char **argv)
       case 'r':
 	run = true;
 	break;
+      case 'd':
+	dasm = true;
+	break;
       case 'o':
 	outf = optarg;
 	break;
@@ -62,10 +66,14 @@ main (int argc, char **argv)
       print_help_msg:
 	printf ("Usage: rlvm [options] file...\n"
 		"Options:\n"
-		"  -c    Compile assembly file\n"
+		"  -c    Compile assembly file (not used with -d)\n"
 		"  -r    Executes a bytecode (or assembly file if -c is used)\n"
-		"  -o    Output file (only used with -c)\n"
+		"  -d    Disassembles a bytecode (not used with -c)\n"
+		"  -o    Output file (only used with -c or -d)\n"
 		"  -h    Displays help\n"
+		"\n"
+		"-c will not print to the console if -o is not specified.\n"
+		"However, -d will print to the console if -o is not present."
 		"\n"
 		"For bug reporting, go to\n"
 		"<https://github.com/plankp/rlvm>.");
@@ -79,6 +87,11 @@ main (int argc, char **argv)
   if (num_inf == 0)
     {
       fprintf (stderr, "error: no input files\n");
+      return 2;
+    }
+  if (compile && dasm)
+    {
+      fprintf (stderr, "error: -c cannot be used with -d\n");
       return 2;
     }
 
@@ -124,9 +137,54 @@ main (int argc, char **argv)
 	}
     }
 
+  if (dasm)
+    {
+      bcode_t files[num_inf];
+      size_t i;
+      for (i = 0; i < num_inf; ++i)
+	{
+	  FILE *f = fopen (inf[i], "r");
+	  if (f == NULL)
+	    {
+	      fprintf (stderr, "error: failed to read file %s\n", inf[i]);
+	      return 2;
+	    }
+	  if (read_bytecode (f, &files[i]) == NULL)
+	    {
+	      fprintf (stderr,
+		       "error: failed interpreting bytecode from %s\n", *inf);
+	      return 3;
+	    }
+	  fclose (f);
+	  if (i == 0)
+	    code = files[i];
+	}
+
+      FILE *f;
+      if (outf == NULL)
+	f = stdout;
+      else
+	{
+	  f = fopen (outf, "w");
+	  if (f == NULL)
+	    {
+	      fprintf (stderr, "error: failed to open file %s\n", outf);
+	      return 2;
+	    }
+	}
+
+      if ((i = disassemble (files, num_inf, f)) != 0)
+	return i;
+      fflush (f);
+      if (f != stdout) /* Don't close stdout. Maybe -r needs to print to it */
+	fclose (f);
+      for (i = 1; i < num_inf; ++i) /* Leave i=0 for -r */
+        clean_bcode (&files[num_inf]);
+    }
+
   if (run)
     {
-      if (!compile)
+      if (!(compile || dasm))
 	{
 	  /* Read and initalize $code */
 	  FILE *f = fopen (*inf, "rb");
