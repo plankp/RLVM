@@ -450,6 +450,163 @@ dis_opcode_29 (opcode_t opcode, FILE * out)
   fprintf (out, "free r%d\n", opcode.svar.rt);
 }
 
+static void
+dis_opcode_30 (opcode_t opcode, FILE * out)
+{
+  fprintf (out, "ldb r%d,r%d,%u\n", opcode.svar.rt, opcode.svar.rs,
+	   opcode.svar.immediate);
+}
+
+static void
+dis_opcode_31 (opcode_t opcode, FILE * out)
+{
+  fprintf (out, "ldw r%d,r%d,%u\n", opcode.svar.rt, opcode.svar.rs,
+	   opcode.svar.immediate);
+}
+
+static void
+dis_opcode_32 (opcode_t opcode, FILE * out)
+{
+  fprintf (out, "ldd r%d,r%d,%u\n", opcode.svar.rt, opcode.svar.rs,
+	   opcode.svar.immediate);
+}
+
+static void
+dis_opcode_33 (opcode_t opcode, FILE * out)
+{
+  fprintf (out, "ldq r%d,r%d,%u\n", opcode.svar.rt, opcode.svar.rs,
+	   opcode.svar.immediate);
+}
+
+static void
+dis_opcode_34 (opcode_t opcode, FILE * out)
+{
+  fprintf (out, "stb r%d,r%d,%u\n", opcode.svar.rt, opcode.svar.rs,
+	   opcode.svar.immediate);
+}
+
+static void
+dis_opcode_35 (opcode_t opcode, FILE * out)
+{
+  fprintf (out, "stw r%d,r%d,%u\n", opcode.svar.rt, opcode.svar.rs,
+	   opcode.svar.immediate);
+}
+
+static void
+dis_opcode_36 (opcode_t opcode, FILE * out)
+{
+  fprintf (out, "std r%d,r%d,%u\n", opcode.svar.rt, opcode.svar.rs,
+	   opcode.svar.immediate);
+}
+
+static void
+dis_opcode_37 (opcode_t opcode, FILE * out)
+{
+  fprintf (out, "stq r%d,r%d,%u\n", opcode.svar.rt, opcode.svar.rs,
+	   opcode.svar.immediate);
+}
+
+static void
+dis_opcode_38 (opcode_t opcode, FILE * out)
+{
+  fprintf (out, "sj");
+  switch (opcode.svar.immediate & 3)
+    {
+    case 0:
+      fprintf (out, "e");
+      break;
+    case 1:
+      if (opcode.svar.immediate & 4)
+	fprintf (out, "s");
+      fprintf (out, "l");
+      break;
+    case 2:
+      if (opcode.svar.immediate & 4)
+	fprintf (out, "s");
+      fprintf (out, "g");
+      break;
+    case 3:
+      fprintf (out, "z ");
+      fprintf (out, (opcode.svar.immediate & 8) ? "fp%d\n" : "r%d\n",
+	       opcode.svar.rs);
+      return;
+    }
+  fprintf (out, " ");
+  fprintf (out, (opcode.svar.immediate & 8) ? "fp%d,fp%d\n" : "r%d,r%d\n",
+	   opcode.svar.rs, opcode.svar.rt);
+}
+
+static void
+dis_opcode_39 (opcode_t opcode, FILE * out)
+{
+  fprintf (out, "ldc r%d,r%d,%u\n", opcode.svar.rt, opcode.svar.rs,
+	   opcode.svar.immediate);
+}
+
+static void
+dis_opcode_40 (opcode_t opcode, FILE * out)
+{
+  fprintf (out, "ldc r%d,%u\n", opcode.svar.rt, opcode.svar.immediate);
+}
+
+static void
+dis_opcode_41 (opcode_t opcode, FILE * out)
+{
+  switch (opcode.fvar.fn)
+    {
+    case 0:
+      fprintf (out, "fread r%d,r%d", opcode.fvar.rs, opcode.fvar.rd);
+      break;
+    case 1:
+      fprintf (out, "fread r%d,r%d,r%d", opcode.fvar.rs, opcode.fvar.rd,
+	       opcode.fvar.rt);
+      break;
+    case 2:
+      fprintf (out, "fread fp%d,r%d,r%d", opcode.fvar.rs, opcode.fvar.rd,
+	       opcode.fvar.rt);
+      break;
+    case 3:
+      fprintf (out, "fwrtb r%d,r%d,r%d", opcode.fvar.rd, opcode.fvar.rs,
+	       opcode.fvar.rt);
+      break;
+    case 4:
+      fprintf (out, "fwrtq r%d,r%d,r%d", opcode.fvar.rd, opcode.fvar.rs,
+	       opcode.fvar.rt);
+      break;
+    case 5:
+      fprintf (out, "fwrtq r%d,r%d,fp%d", opcode.fvar.rd, opcode.fvar.rs,
+	       opcode.fvar.rt);
+      break;
+    case 6:
+      fprintf (out, "fwrts r%d,r%d,r%d", opcode.fvar.rd, opcode.fvar.rs,
+	       opcode.fvar.rt);
+      break;
+    case 7:
+      fprintf (out, "ldc r%d,<stdout>", opcode.fvar.rd);
+      break;
+    case 8:
+      fprintf (out, "ldc r%d,<stderr>", opcode.fvar.rd);
+      break;
+    case 9:
+      fprintf (out, "ldc r%d,<stdin>", opcode.fvar.rd);
+      break;
+    case 10:
+      fprintf (out, "fopen r%d,r%d,r%d", opcode.fvar.rd, opcode.fvar.rs,
+	       opcode.fvar.rt);
+      break;
+    case 11:
+      fprintf (out, "fclose r%d,r%d", opcode.fvar.rd, opcode.fvar.rs);
+      break;
+    case 12:
+      fprintf (out, "fflush r%d,r%d", opcode.fvar.rd, opcode.fvar.rs);
+      break;
+    case 13:
+      fprintf (out, "frewind r%d", opcode.fvar.rs);
+      break;
+    }
+  fprintf (out, "\n");
+}
+
 int
 disassemble (bcode_t * code, size_t count, FILE * out)
 {
@@ -479,7 +636,10 @@ disassemble (bcode_t * code, size_t count, FILE * out)
 	&dis_opcode_16, &dis_opcode_17, &dis_opcode_18, &dis_opcode_19,
 	&dis_opcode_20, &dis_opcode_21, &dis_opcode_22, &dis_opcode_23,
 	&dis_opcode_24, &dis_opcode_25, &dis_opcode_26, &dis_opcode_27,
-	&dis_opcode_28, &dis_opcode_29,
+	&dis_opcode_28, &dis_opcode_29, &dis_opcode_30, &dis_opcode_31,
+	&dis_opcode_32, &dis_opcode_33, &dis_opcode_34, &dis_opcode_35,
+	&dis_opcode_36, &dis_opcode_37, &dis_opcode_38, &dis_opcode_39,
+	&dis_opcode_40, &dis_opcode_41
       };
       static const size_t dtab_len =
 	sizeof (dis_table) / sizeof (dis_table[0]);
