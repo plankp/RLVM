@@ -24,72 +24,50 @@
 
 #include "rasm.h"
 
-static void
-print_fvar_opcode (op_fvar_t op, FILE * out)
-{
-  fprintf (out,
-	   "%06x %05x %05x %05x %05x %06x",
-	   op.opcode, op.rs, op.rt, op.rd, op.sa, op.fn);
-}
-
-static void
-print_svar_opcode (op_svar_t op, FILE * out)
-{
-  fprintf (out,
-	   "%06x %05x %05x %016x  ", op.opcode, op.rs, op.rt, op.immediate);
-}
-
-static void
-print_tvar_opcode (op_tvar_t op, FILE * out)
-{
-  fprintf (out, "%06x %026x    ", op.opcode, op.target);
-}
-
 typedef void (*disf_t) (opcode_t, FILE *);
 
 static void
 dis_opcode_0 (opcode_t opcode, FILE * out)
 {
-  print_fvar_opcode (opcode.fvar, out);
   switch (opcode.fvar.fn)
     {
     case 0:
-      fprintf (out, " halt r%d\n", opcode.fvar.rs);
+      fprintf (out, "halt r%d\n", opcode.fvar.rs);
       break;
     case 1:
       switch (opcode.fvar.sa)
 	{
 	case 0:
-	  fprintf (out, " mov r%d,r%d\n", opcode.fvar.rd, opcode.fvar.rs);
+	  fprintf (out, "mov r%d,r%d\n", opcode.fvar.rd, opcode.fvar.rs);
 	  break;
 	case 1:
-	  fprintf (out, " mh32 r%d,r%d\n", opcode.fvar.rd, opcode.fvar.rs);
+	  fprintf (out, "mh32 r%d,r%d\n", opcode.fvar.rd, opcode.fvar.rs);
 	  break;
 	case 2:
-	  fprintf (out, " ml32 r%d,r%d\n", opcode.fvar.rd, opcode.fvar.rs);
+	  fprintf (out, "ml32 r%d,r%d\n", opcode.fvar.rd, opcode.fvar.rs);
 	  break;
 	case 3:
-	  fprintf (out, " ml16 r%d,r%d\n", opcode.fvar.rd, opcode.fvar.rs);
+	  fprintf (out, "ml16 r%d,r%d\n", opcode.fvar.rd, opcode.fvar.rs);
 	  break;
 	case 4:
-	  fprintf (out, " ml8 r%d,r%d\n", opcode.fvar.rd, opcode.fvar.rs);
+	  fprintf (out, "ml8 r%d,r%d\n", opcode.fvar.rd, opcode.fvar.rs);
 	  break;
 	}
       break;
     case 2:
-      fprintf (out, " mov fp%d,fp%d\n", opcode.fvar.rd, opcode.fvar.rs);
+      fprintf (out, "mov fp%d,fp%d\n", opcode.fvar.rd, opcode.fvar.rs);
       break;
     case 3:
-      fprintf (out, " swp r%d,r%d\n", opcode.fvar.rd, opcode.fvar.rs);
+      fprintf (out, "swp r%d,r%d\n", opcode.fvar.rd, opcode.fvar.rs);
       break;
     case 4:
       switch (opcode.fvar.rt)
 	{
 	case 0:
-	  fprintf (out, " i2f fp%d,r%d\n", opcode.fvar.rd, opcode.fvar.rs);
+	  fprintf (out, "i2f fp%d,r%d\n", opcode.fvar.rd, opcode.fvar.rs);
 	  break;
 	case 1:
-	  fprintf (out, " b2f fp%d,r%d\n", opcode.fvar.rd, opcode.fvar.rs);
+	  fprintf (out, "b2f fp%d,r%d\n", opcode.fvar.rd, opcode.fvar.rs);
 	  break;
 	}
       break;
@@ -97,43 +75,43 @@ dis_opcode_0 (opcode_t opcode, FILE * out)
       switch (opcode.fvar.rt)
 	{
 	case 0:
-	  fprintf (out, " f2if r%d,fp%d\n", opcode.fvar.rd, opcode.fvar.rs);
+	  fprintf (out, "f2if r%d,fp%d\n", opcode.fvar.rd, opcode.fvar.rs);
 	  break;
 	case 1:
-	  fprintf (out, " f2b r%d,fp%d\n", opcode.fvar.rd, opcode.fvar.rs);
+	  fprintf (out, "f2b r%d,fp%d\n", opcode.fvar.rd, opcode.fvar.rs);
 	  break;
 	case 2:
-	  fprintf (out, " f2ic r%d,fp%d\n", opcode.fvar.rd, opcode.fvar.rs);
+	  fprintf (out, "f2ic r%d,fp%d\n", opcode.fvar.rd, opcode.fvar.rs);
 	  break;
 	}
       break;
     case 6:
-      fprintf (out, " rmeh\n");
+      fprintf (out, "rmeh\n");
       break;
     case 7:
-      fprintf (out, " throw r%d\n", opcode.fvar.rs);
+      fprintf (out, "throw r%d\n", opcode.fvar.rs);
       break;
     case 8:
       switch (opcode.fvar.sa)
 	{
 	case 0:
-	  fprintf (out, " push r%d\n", opcode.fvar.rs);
+	  fprintf (out, "push r%d\n", opcode.fvar.rs);
 	  break;
 	case 1:
-	  fprintf (out, " push r%d,r%d\n", opcode.fvar.rs, opcode.fvar.rt);
+	  fprintf (out, "push r%d,r%d\n", opcode.fvar.rs, opcode.fvar.rt);
 	  break;
 	case 2:
-	  fprintf (out, " push r%d,r%d,r%d\n", opcode.fvar.rs, opcode.fvar.rt,
+	  fprintf (out, "push r%d,r%d,r%d\n", opcode.fvar.rs, opcode.fvar.rt,
 		   opcode.fvar.rd);
 	  break;
 	case 4:
-	  fprintf (out, " pop r%d\n", opcode.fvar.rs);
+	  fprintf (out, "pop r%d\n", opcode.fvar.rs);
 	  break;
 	case 5:
-	  fprintf (out, " pop r%d,r%d\n", opcode.fvar.rs, opcode.fvar.rt);
+	  fprintf (out, "pop r%d,r%d\n", opcode.fvar.rs, opcode.fvar.rt);
 	  break;
 	case 6:
-	  fprintf (out, " pop r%d,r%d,r%d\n", opcode.fvar.rs, opcode.fvar.rt,
+	  fprintf (out, "pop r%d,r%d,r%d\n", opcode.fvar.rs, opcode.fvar.rt,
 		   opcode.fvar.rd);
 	  break;
 	}
@@ -142,13 +120,13 @@ dis_opcode_0 (opcode_t opcode, FILE * out)
       switch (opcode.fvar.sa)
 	{
 	case 0:
-	  fprintf (out, " ldex r%d\n", opcode.fvar.rd);
+	  fprintf (out, "ldex r%d\n", opcode.fvar.rd);
 	  break;
 	case 1:
-	  fprintf (out, " ldex\n");
+	  fprintf (out, "ldex\n");
 	  break;
 	case 2:
-	  fprintf (out, " pldex r%d\n", opcode.fvar.rd);
+	  fprintf (out, "pldex r%d\n", opcode.fvar.rd);
 	  break;
 	}
     }
@@ -157,62 +135,61 @@ dis_opcode_0 (opcode_t opcode, FILE * out)
 static void
 dis_opcode_1 (opcode_t opcode, FILE * out)
 {
-  print_fvar_opcode (opcode.fvar, out);
   switch (opcode.fvar.fn & 15)
     {
     case 0:
-      fprintf (out, " add r%d,r%d,r%d", opcode.fvar.rd, opcode.fvar.rs,
+      fprintf (out, "add r%d,r%d,r%d", opcode.fvar.rd, opcode.fvar.rs,
 	       opcode.fvar.rt);
       break;
     case 1:
-      fprintf (out, " sub r%d,r%d,r%d", opcode.fvar.rd, opcode.fvar.rs,
+      fprintf (out, "sub r%d,r%d,r%d", opcode.fvar.rd, opcode.fvar.rs,
 	       opcode.fvar.rt);
       break;
     case 2:
-      fprintf (out, " mul r%d,r%d,r%d", opcode.fvar.rd, opcode.fvar.rs,
+      fprintf (out, "mul r%d,r%d,r%d", opcode.fvar.rd, opcode.fvar.rs,
 	       opcode.fvar.rt);
       break;
     case 3:
-      fprintf (out, " div r%d,r%d,r%d", opcode.fvar.rd, opcode.fvar.rs,
+      fprintf (out, "div r%d,r%d,r%d", opcode.fvar.rd, opcode.fvar.rs,
 	       opcode.fvar.rt);
       break;
     case 4:
-      fprintf (out, " mod r%d,r%d,r%d", opcode.fvar.rd, opcode.fvar.rs,
+      fprintf (out, "mod r%d,r%d,r%d", opcode.fvar.rd, opcode.fvar.rs,
 	       opcode.fvar.rt);
       break;
     case 5:
-      fprintf (out, " and r%d,r%d,r%d", opcode.fvar.rd, opcode.fvar.rs,
+      fprintf (out, "and r%d,r%d,r%d", opcode.fvar.rd, opcode.fvar.rs,
 	       opcode.fvar.rt);
       break;
     case 6:
-      fprintf (out, " or r%d,r%d,r%d", opcode.fvar.rd, opcode.fvar.rs,
+      fprintf (out, "or r%d,r%d,r%d", opcode.fvar.rd, opcode.fvar.rs,
 	       opcode.fvar.rt);
       break;
     case 7:
-      fprintf (out, " xor r%d,r%d,r%d", opcode.fvar.rd, opcode.fvar.rs,
+      fprintf (out, "xor r%d,r%d,r%d", opcode.fvar.rd, opcode.fvar.rs,
 	       opcode.fvar.rt);
       break;
     case 8:
-      fprintf (out, " not r%d,r%d", opcode.fvar.rd, opcode.fvar.rt);
+      fprintf (out, "not r%d,r%d", opcode.fvar.rd, opcode.fvar.rt);
       break;
     case 9:
-      fprintf (out, " lsh r%d,r%d,r%d", opcode.fvar.rd, opcode.fvar.rs,
+      fprintf (out, "lsh r%d,r%d,r%d", opcode.fvar.rd, opcode.fvar.rs,
 	       opcode.fvar.rt);
       break;
     case 10:
-      fprintf (out, " rsh r%d,r%d,r%d", opcode.fvar.rd, opcode.fvar.rs,
+      fprintf (out, "rsh r%d,r%d,r%d", opcode.fvar.rd, opcode.fvar.rs,
 	       opcode.fvar.rt);
       break;
     case 11:
-      fprintf (out, " srsh r%d,r%d,r%d", opcode.fvar.rd, opcode.fvar.rs,
+      fprintf (out, "srsh r%d,r%d,r%d", opcode.fvar.rd, opcode.fvar.rs,
 	       opcode.fvar.rt);
       break;
     case 12:
-      fprintf (out, " rol r%d,r%d,r%d", opcode.fvar.rd, opcode.fvar.rs,
+      fprintf (out, "rol r%d,r%d,r%d", opcode.fvar.rd, opcode.fvar.rs,
 	       opcode.fvar.rt);
       break;
     case 13:
-      fprintf (out, " ror r%d,r%d,r%d", opcode.fvar.rd, opcode.fvar.rs,
+      fprintf (out, "ror r%d,r%d,r%d", opcode.fvar.rd, opcode.fvar.rs,
 	       opcode.fvar.rt);
       break;
     }
@@ -236,27 +213,26 @@ dis_opcode_1 (opcode_t opcode, FILE * out)
 static void
 dis_opcode_2 (opcode_t opcode, FILE * out)
 {
-  print_fvar_opcode (opcode.fvar, out);
   switch (opcode.fvar.fn)
     {
     case 0:
-      fprintf (out, " add fp%d,fp%d,fp%d", opcode.fvar.rd, opcode.fvar.rs,
+      fprintf (out, "add fp%d,fp%d,fp%d", opcode.fvar.rd, opcode.fvar.rs,
 	       opcode.fvar.rt);
       break;
     case 1:
-      fprintf (out, " sub fp%d,fp%d,fp%d", opcode.fvar.rd, opcode.fvar.rs,
+      fprintf (out, "sub fp%d,fp%d,fp%d", opcode.fvar.rd, opcode.fvar.rs,
 	       opcode.fvar.rt);
       break;
     case 2:
-      fprintf (out, " mul fp%d,fp%d,fp%d", opcode.fvar.rd, opcode.fvar.rs,
+      fprintf (out, "mul fp%d,fp%d,fp%d", opcode.fvar.rd, opcode.fvar.rs,
 	       opcode.fvar.rt);
       break;
     case 3:
-      fprintf (out, " div fp%d,fp%d,fp%d", opcode.fvar.rd, opcode.fvar.rs,
+      fprintf (out, "div fp%d,fp%d,fp%d", opcode.fvar.rd, opcode.fvar.rs,
 	       opcode.fvar.rt);
       break;
     case 4:
-      fprintf (out, " mod fp%d,fp%d,fp%d", opcode.fvar.rd, opcode.fvar.rs,
+      fprintf (out, "mod fp%d,fp%d,fp%d", opcode.fvar.rd, opcode.fvar.rs,
 	       opcode.fvar.rt);
       break;
     }
@@ -265,8 +241,7 @@ dis_opcode_2 (opcode_t opcode, FILE * out)
 static void
 dis_opcode_3 (opcode_t opcode, FILE * out)
 {
-  print_svar_opcode (opcode.svar, out);
-  fprintf (out, " mov r%d,%u", opcode.svar.rs, opcode.svar.immediate);
+  fprintf (out, "mov r%d,%u", opcode.svar.rs, opcode.svar.immediate);
   if (opcode.svar.rt > 0)
     fprintf (out, ",LSH %u", opcode.svar.rt);
   fprintf (out, "\n");
@@ -275,19 +250,15 @@ dis_opcode_3 (opcode_t opcode, FILE * out)
 static inline void
 __dis_alu_immediate (opcode_t opcode, FILE * out, char *op)
 {
-  print_svar_opcode (opcode.svar, out);
-  fprintf (out, " %s r%d,r%d,%u\n", op, opcode.svar.rs, opcode.svar.rt,
+  fprintf (out, "%s r%d,r%d,%u\n", op, opcode.svar.rs, opcode.svar.rt,
 	   opcode.svar.immediate);
-
 }
 
 static inline void
 __dis_flt_immediate (opcode_t opcode, FILE * out, char *op)
 {
-  print_svar_opcode (opcode.svar, out);
-  fprintf (out, " %s fp%d,fp%d,%u\n", op, opcode.svar.rs, opcode.svar.rt,
+  fprintf (out, "%s fp%d,fp%d,%u\n", op, opcode.svar.rs, opcode.svar.rt,
 	   opcode.svar.immediate);
-
 }
 
 static void
@@ -341,22 +312,19 @@ dis_opcode_11 (opcode_t opcode, FILE * out)
 static void
 dis_opcode_12 (opcode_t opcode, FILE * out)
 {
-  print_tvar_opcode (opcode.tvar, out);
-  fprintf (out, " call %u\n", opcode.tvar.target);
+  fprintf (out, "call %u\n", opcode.tvar.target);
 }
 
 static void
 dis_opcode_13 (opcode_t opcode, FILE * out)
 {
-  print_tvar_opcode (opcode.tvar, out);
-  fprintf (out, " jmp %u\n", opcode.tvar.target);
+  fprintf (out, "jmp %u\n", opcode.tvar.target);
 }
 
 static void
 dis_opcode_14 (opcode_t opcode, FILE * out)
 {
-  print_tvar_opcode (opcode.tvar, out);
-  fprintf (out, " ret %u\n", opcode.tvar.target);
+  fprintf (out, "ret %u\n", opcode.tvar.target);
 }
 
 static void
@@ -410,15 +378,13 @@ dis_opcode_22 (opcode_t opcode, FILE * out)
 static void
 dis_opcode_23 (opcode_t opcode, FILE * out)
 {
-  print_tvar_opcode (opcode.tvar, out);
-  fprintf (out, " jof %u\n", opcode.tvar.target);
+  fprintf (out, "jof %u\n", opcode.tvar.target);
 }
 
 static void
 dis_opcode_24 (opcode_t opcode, FILE * out)
 {
-  print_svar_opcode (opcode.svar, out);
-  fprintf (out, " jmp r%d", opcode.svar.rs);
+  fprintf (out, "jmp r%d", opcode.svar.rs);
   if (opcode.svar.rt > 0)
     fprintf (out, ",LSH %u", opcode.svar.rt);
   if (opcode.svar.immediate > 0)
@@ -429,14 +395,13 @@ dis_opcode_24 (opcode_t opcode, FILE * out)
 static void
 dis_opcode_25 (opcode_t opcode, FILE * out)
 {
-  print_svar_opcode (opcode.svar, out);
   switch (opcode.svar.rt)
     {
     case 0:
-      fprintf (out, " jz r%d\n", opcode.svar.rs);
+      fprintf (out, "jz r%d\n", opcode.svar.rs);
       break;
     case 1:
-      fprintf (out, " jz fp%d\n", opcode.svar.rs);
+      fprintf (out, "jz fp%d\n", opcode.svar.rs);
       break;
     }
 }
@@ -444,30 +409,28 @@ dis_opcode_25 (opcode_t opcode, FILE * out)
 static void
 dis_opcode_26 (opcode_t opcode, FILE * out)
 {
-  print_tvar_opcode (opcode.tvar, out);
-  fprintf (out, " ineh %u\n", opcode.tvar.target);
+  fprintf (out, "ineh %u\n", opcode.tvar.target);
 }
 
 static void
 dis_opcode_27 (opcode_t opcode, FILE * out)
 {
-  print_svar_opcode (opcode.svar, out);
   switch (opcode.svar.rs)
     {
     case 0:
-      fprintf (out, " ld r%d,%u\n", opcode.svar.rt, opcode.svar.immediate);
+      fprintf (out, "ld r%d,%u\n", opcode.svar.rt, opcode.svar.immediate);
       break;
     case 1:
-      fprintf (out, " ld fp%d,%u\n", opcode.svar.rt, opcode.svar.immediate);
+      fprintf (out, "ld fp%d,%u\n", opcode.svar.rt, opcode.svar.immediate);
       break;
     case 2:
-      fprintf (out, " st r%d,%u\n", opcode.svar.rt, opcode.svar.immediate);
+      fprintf (out, "st r%d,%u\n", opcode.svar.rt, opcode.svar.immediate);
       break;
     case 3:
-      fprintf (out, " st fp%d,%u\n", opcode.svar.rt, opcode.svar.immediate);
+      fprintf (out, "st fp%d,%u\n", opcode.svar.rt, opcode.svar.immediate);
       break;
     case 4:
-      fprintf (out, " stfb fp%d,%u\n", opcode.svar.rt, opcode.svar.immediate);
+      fprintf (out, "stfb fp%d,%u\n", opcode.svar.rt, opcode.svar.immediate);
       break;
     }
 }
@@ -475,18 +438,16 @@ dis_opcode_27 (opcode_t opcode, FILE * out)
 static void
 dis_opcode_28 (opcode_t opcode, FILE * out)
 {
-  print_svar_opcode (opcode.svar, out);
   if (opcode.svar.immediate == 0)
-    fprintf (out, " alloc r%d,r%d\n", opcode.svar.rt, opcode.svar.rs);
+    fprintf (out, "alloc r%d,r%d\n", opcode.svar.rt, opcode.svar.rs);
   else
-    fprintf (out, " alloc r%d,%u\n", opcode.svar.rt, opcode.svar.immediate);
+    fprintf (out, "alloc r%d,%u\n", opcode.svar.rt, opcode.svar.immediate);
 }
 
 static void
 dis_opcode_29 (opcode_t opcode, FILE * out)
 {
-  print_svar_opcode (opcode.svar, out);
-  fprintf (out, " free r%d\n", opcode.svar.rt);
+  fprintf (out, "free r%d\n", opcode.svar.rt);
 }
 
 int
@@ -526,8 +487,9 @@ disassemble (bcode_t * code, size_t count, FILE * out)
       uint64_t ip;
       for (ip = 0; ip < code[i].code_size; ++ip)
 	{
-	  fprintf (out, "%016" PRIx64 "  ", ip);
+	  fprintf (out, "%016" PRIx64 ":   ", ip);
 	  const opcode_t instr = code[i].code[ip];
+	  fprintf (out, "%08" PRIx32 "    ", instr.bytes);
 	  if (instr.fvar.opcode < dtab_len)
 	    dis_table[instr.fvar.opcode] (instr, out);
 	  else
