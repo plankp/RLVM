@@ -75,11 +75,11 @@
 | AND r%d, r%d, r%d, RSH # | `$1 = $2 & ($3 >>> $4)` |
 | AND r%d, r%d, r%d, SRSH # | `$1 = $2 & ($3 >> $4)` |
 | AND r%d, r%d, # | `$1 = $2 & $3` |
-| OR r%d, r%d, r%d | `$1 = $2 \| $3` |
-| OR r%d, r%d, r%d, LSH # | `$1 = $2 \| ($3 << $4)` |
-| OR r%d, r%d, r%d, RSH # | `$1 = $2 \| ($3 >>> $4)` |
-| OR r%d, r%d, r%d, SRSH # | `$1 = $2 \| ($3 >> $4)` |
-| OR r%d, r%d, # | `$1 = $2 \| $3` |
+| OR r%d, r%d, r%d | `$1 = $2 | $3` |
+| OR r%d, r%d, r%d, LSH # | `$1 = $2 | ($3 << $4)` |
+| OR r%d, r%d, r%d, RSH # | `$1 = $2 | ($3 >>> $4)` |
+| OR r%d, r%d, r%d, SRSH # | `$1 = $2 | ($3 >> $4)` |
+| OR r%d, r%d, # | `$1 = $2 | $3` |
 | XOR r%d, r%d, r%d | `$1 = $2 ^ $3` |
 | XOR r%d, r%d, r%d, LSH # | `$1 = $2 ^ ($3 << $4)` |
 | XOR r%d, r%d, r%d, RSH # | `$1 = $2 ^ ($3 >>> $4)` |
@@ -122,8 +122,8 @@
 | JG fp%d, fp%d, &lt;text&gt; | Jumps if `$1 > $2` |
 | JOF # | Jumps to a signed offset of `$1` |
 | JMP r%d | Jumps to address of `$1` |
-| JZ r%d, &lt;text&gt; | Jumps if `$1 == 0` |
-| JZ fp%d, &lt;text&gt; | Jumps if `$1 == 0` |
+| JZ r%d, &lt;text&gt; | Jumps if `$1` is zero |
+| JZ fp%d, &lt;text&gt; | Jumps if `$1` is zero |
 | INEH &lt;text&gt; | Adds a handler that jumps to `$1` on exception |
 | LDS r%d, # | Loads value on the stack with offset of `$2` to `$1` |
 | LDS fp%d, # | Loads value on the stack with offset of `$2` to `$1` |
