@@ -630,9 +630,9 @@ visInstr:
     | K_SJZ FREG {
       opc = RLVM_SFRZ ($2);
     }
-    | K_LDC IREG COMMA IREG COMMA LABEL {
+    | K_LDC IREG COMMA IREG COMMA numeric {
       if (pass == 2)
-	opc = RLVM_LDPO ($2, $4, get_lbl_addr (true, $6));
+	opc = RLVM_LDPO ($2, $4, $6);
     }
     | K_LDC IREG COMMA LABEL {
       if (pass == 2)

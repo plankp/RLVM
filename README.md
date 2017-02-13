@@ -8,7 +8,8 @@ Current ways of generating RLVM bytecode:
 2.  Construct with C (or C++) code
 3.  Hand compile with hex editor
 
-The full list of instructions can be found in `header/bcode.h`.
+The full list of instructions can be found in the `README.md` file in `sample`.
+There is also a list in `header/bcode.h`.
 They are prefixed with `RLVM_` and are macros to make code generation easier.
 
 To run the pre-assembled bytecode `sample/gcd.bin`, enter this command
