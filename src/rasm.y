@@ -153,6 +153,7 @@ defLabel:
 	    case DATA:
 	      fflush (ropool);
 	      put_entry (&trans_unit[tunit_idx].lmap, $1, pool_len, tunit_idx);
+	      set_data_flag (&trans_unit[tunit_idx].lmap, $1, true);
 	      break;
 	    }
 	  break;
