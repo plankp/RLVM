@@ -35,9 +35,95 @@ extern "C"
   yylval.ival = atoi (yytext + 1);
   return IREG;
 				}
-0(x|X)[a-fA-F0-9]{1,2}		{
-  yylval.cval = strtol (yytext, NULL, 16);
-  return CHAR;
+0(b|B)[01]+			{
+  yylval.ival = strtol (yytext + 2, NULL, 2);
+  return INT;
+				}
+0(x|X)[a-fA-F0-9]+		{
+  yylval.ival = strtol (yytext + 2, NULL, 16);
+  return INT;
+				}
+\"([^\"\\\r\n]|\\[\"\\bfnrtav])*\" {
+  char *str;
+  size_t len;
+  FILE *buf = open_memstream (&str, &len);
+  size_t i;
+  for (i = 1; yytext[i] != '"'; ++i)
+    {
+      if (yytext[i] == '\\')
+	switch (yytext[++i])
+	  {
+	  case '\'':
+	  case '\\':
+	    putc (yytext[i], buf);
+	    break;
+	  case 'b':
+	    putc ('\b', buf);
+	    break;
+	  case 'f':
+	    putc ('\f', buf);
+	    break;
+	  case 'n':
+	    putc ('\n', buf);
+	    break;
+	  case 'r':
+	    putc ('\r', buf);
+	    break;
+	  case 't':
+	    putc ('\t', buf);
+	    break;
+	  case 'a':
+	    putc ('\a', buf);
+	    break;
+	  case 'v':
+	    putc ('\v', buf);
+	    break;
+	  default:
+	    break;
+	  }
+      else
+        putc (yytext[i], buf);
+    }
+  fflush (buf);
+  fclose (buf);
+  yylval.sval = str;
+  return STR;
+}
+\'([^\'\\\r\n]|\\[\'\\bfnrtav])\' {
+  if (yytext[1] == '\\')
+    switch (yytext[2])
+      {
+      case '\'':
+      case '\\':
+	yylval.ival = yytext[2];
+	break;
+      case 'b':
+	yylval.ival = '\b';
+	break;
+      case 'f':
+	yylval.ival = '\f';
+	break;
+      case 'n':
+	yylval.ival = '\n';
+	break;	
+      case 'r':
+	yylval.ival = '\r';
+	break;
+      case 't':
+	yylval.ival = '\t';
+	break;
+      case 'a':
+	yylval.ival = '\a';
+	break;
+      case 'v':
+	yylval.ival = '\v';
+	break;
+      default:
+	break;
+      }
+  else
+    yylval.ival = yytext[1];
+  return INT;
 				}
 \.(GLOBAL)|(global)		return D_GLOBAL;
 \.(SECTION)|(section)		return D_SECTION;
@@ -119,8 +205,12 @@ FREAD|fread			return K_FREAD;
 FWRTB|fwrtb			return K_FWRTB;
 FWRTQ|fwrtq			return K_FWRTQ;
 FWRTS|fwrts			return K_FWRTS;
+DB|db				return S_DB;
+DW|dw				return S_DW;
+DD|dd				return S_DD;
+DQ|dq				return S_DQ;
 -?(0|[1-9][0-9]*)	       	{
-  yylval.ival = atoi (yytext);
+  yylval.ival = strtol (yytext, NULL, 10);
   return INT;
 				}
 [$_a-zA-Z][$_a-zA-Z0-9]*	{
