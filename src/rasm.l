@@ -43,6 +43,52 @@ extern "C"
   yylval.ival = strtol (yytext + 2, NULL, 16);
   return INT;
 				}
+\"([^\"\\\r\n]|\\[\"\\bfnrtav])*\" {
+  char *str;
+  size_t len;
+  FILE *buf = open_memstream (&str, &len);
+  size_t i;
+  for (i = 1; yytext[i] != '"'; ++i)
+    {
+      if (yytext[i] == '\\')
+	switch (yytext[++i])
+	  {
+	  case '\'':
+	  case '\\':
+	    putc (yytext[i], buf);
+	    break;
+	  case 'b':
+	    putc ('\b', buf);
+	    break;
+	  case 'f':
+	    putc ('\f', buf);
+	    break;
+	  case 'n':
+	    putc ('\n', buf);
+	    break;
+	  case 'r':
+	    putc ('\r', buf);
+	    break;
+	  case 't':
+	    putc ('\t', buf);
+	    break;
+	  case 'a':
+	    putc ('\a', buf);
+	    break;
+	  case 'v':
+	    putc ('\v', buf);
+	    break;
+	  default:
+	    break;
+	  }
+      else
+        putc (yytext[i], buf);
+    }
+  fflush (buf);
+  fclose (buf);
+  yylval.sval = str;
+  return STR;
+}
 \'([^\'\\\r\n]|\\[\'\\bfnrtav])\' {
   if (yytext[1] == '\\')
     switch (yytext[2])
@@ -78,7 +124,6 @@ extern "C"
   else
     yylval.ival = yytext[1];
   return INT;
-
 				}
 \.(GLOBAL)|(global)		return D_GLOBAL;
 \.(SECTION)|(section)		return D_SECTION;

@@ -82,7 +82,7 @@ extern "C"
   char *sval;
 }
 
-%token <sval> LABEL
+%token <sval> LABEL STR
 %token <ival> INT IREG FREG
 
 %%
@@ -138,6 +138,14 @@ cbytes_p:
 	  const uint64_t tmp = $2;
 	  fwrite (&tmp, sizeof (char), 8, ropool);
 	}
+    }
+    | STR {
+      if (pass == 0)
+	{
+	  fprintf (ropool, $1);
+	  putc (0, ropool);
+	}
+      free ($1);
     }
     ;
 
